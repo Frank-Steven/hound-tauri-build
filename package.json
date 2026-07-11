@@ -29,9 +29,13 @@
   ],
   "author": "Frank Steven",
   "license": "GPL-3.0-only",
+  "homepage": "https://github.com/frankssteven/hound-whiteboard#readme",
+  "bugs": {
+    "url": "https://github.com/frankssteven/hound-whiteboard/issues"
+  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/frankssteven/hound-whiteboard"
+    "url": "git+https://github.com/frankssteven/hound-whiteboard.git"
   },
   "dependencies": {
     "adm-zip": "0.5.17",

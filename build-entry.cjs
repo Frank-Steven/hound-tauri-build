@@ -93,6 +93,7 @@ const BUILD_QUICK_CMD = {
 
 let tuiSock = null;
 let tuiChild = null;
+let NO_TUI = false; // --no-tui 参数强制禁用 TUI
 
 /** @returns {boolean} */
 function isTuiAlive() {
@@ -280,7 +281,7 @@ function printSummary(summary) {
  * @returns {Promise<boolean>}
  */
 async function runWithTuiOrFallback(targetIds) {
-  if (!process.stdout.isTTY) {
+  if (!process.stdout.isTTY || NO_TUI) {
     const collector = createCollector(null);
     const ok = await executeResolved(targetIds, 'inline', collector.cb);
     printSummary(collector.getSummary());
@@ -343,6 +344,9 @@ function showHelp() {
   console.log('  ship [platform]         - Run tests + build for platform');
   console.log('  icon [platform|all]     - Generate icons');
   console.log();
+  console.log('Options:');
+  console.log('  --no-tui                - Disable TUI mode, use inline output');
+  console.log();
   console.log('Platforms:');
   console.log('  desktop, win, mac, mac-universal, linux, android, ios');
 }
@@ -352,7 +356,10 @@ function showHelp() {
 // ============================================================
 
 async function main() {
-  const args = process.argv.slice(2);
+  const args = process.argv.slice(2).filter(a => {
+    if (a === '--no-tui') { NO_TUI = true; return false; }
+    return true;
+  });
   const command = args[0];
   const platform = args[1] || 'desktop';
 
