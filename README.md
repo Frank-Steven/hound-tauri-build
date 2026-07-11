@@ -86,6 +86,11 @@ your-tauri-project/
 │   ├── icon-linux.png       # Linux 专用源（可选）
 │   ├── icon-android.png     # Android 专用源（可选）
 │   └── icon-ios.png         # iOS 专用源（可选）
+├── keys/                    # 密钥源（Android 打包）
+│   ├── keystore.properties  # Android 密钥配置文件（可选）
+│   └── MyKeystore.jks       # Android 密钥文件
+│                            # 需在 `keystore.properties` 中
+│                            # 配置绝对路径（可选）
 ├── package.json
 └── ...
 ```

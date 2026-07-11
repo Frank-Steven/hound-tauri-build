@@ -281,7 +281,10 @@ function printSummary(summary) {
  * @returns {Promise<boolean>}
  */
 async function runWithTuiOrFallback(targetIds) {
+  // 终端过小时不跳过 TUI，子进程内会渲染 SizeWarning 提示页 + resize 自动恢复
   if (!process.stdout.isTTY || NO_TUI) {
+    if (NO_TUI) { /* 用户主动禁用，不提示 */ }
+    else if (!process.stdout.isTTY) { process.stderr.write('[info] 非 TTY 环境，回退内联模式\n'); }
     const collector = createCollector(null);
     const ok = await executeResolved(targetIds, 'inline', collector.cb);
     printSummary(collector.getSummary());
