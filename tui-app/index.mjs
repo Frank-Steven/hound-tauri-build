@@ -880,14 +880,7 @@ function App({ port }) {
         );
       })(),
       React.createElement(Box, { height: 1 }),
-      // 退出提示
-      React.createElement(
-        Box,
-        null,
-        React.createElement(Text, { color: 'grey' }, '  Press Esc or Enter to exit'),
-      ),
-      React.createElement(Box, { flexGrow: 1 }),
-      // 任务终态列表（底部）
+      // 任务终态列表
       React.createElement(
         Box,
         { flexDirection: 'column' },
@@ -918,6 +911,13 @@ function App({ port }) {
              ...stepNodes,
            );
         }),
+      ),
+      React.createElement(Box, { flexGrow: 1 }),
+      // 退出提示（最底部）
+      React.createElement(
+        Box,
+        null,
+        React.createElement(Text, { color: 'grey' }, '  Press Esc or Enter to exit'),
       ),
     );
   }
