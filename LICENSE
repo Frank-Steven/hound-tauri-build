@@ -180,8 +180,9 @@ makes it unnecessary.
 
   No covered work shall be deemed part of an effective technological
 measure under any applicable law fulfilling obligations under article
-11 of the WIPO copyright treaty adopted on 2001-10-23, or similar
-laws prohibiting or restricting circumvention of such measures.
+11 of the WIPO copyright treaty adopted on 20 December 1996, or
+similar laws prohibiting or restricting circumvention of such
+measures.
 
   When you convey a covered work, you waive any legal power to forbid
 circumvention of technological measures to the extent such circumvention
@@ -295,17 +296,16 @@ included in conveying the object code work.
 
   A "User Product" is either (1) a "consumer product", which means any
 tangible personal property which is normally used for personal, family,
-or household purposes, or (2) anything designed or sold for
-incorporation into a dwelling.  In determining whether a product is a
-consumer product, doubtful cases shall be resolved in favor of
-coverage.  For a particular product received by a particular user,
-"normally used" refers to a typical or common use of that class of
-product, regardless of the status of the particular user or of the way
-in which the particular user actually uses, or expects or is expected
-to use, the product.  A product is a consumer product regardless of
-whether the product has substantial commercial, industrial or
-non-consumer uses, unless such uses represent the only significant
-mode of use of the product.
+or household purposes, or (2) anything designed or sold for incorporation
+into a dwelling.  In determining whether a product is a consumer product,
+doubtful cases shall be resolved in favor of coverage.  For a particular
+product received by a particular user, "normally used" refers to a
+typical or common use of that class of product, regardless of the status
+of the particular user or of the way in which the particular user
+actually uses, or expects or is expected to use, the product.  A product
+is a consumer product regardless of whether the product has substantial
+commercial, industrial or non-consumer uses, unless such uses represent
+the only significant mode of use of the product.
 
   "Installation Information" for a User Product means any methods,
 procedures, authorization keys, or other information required to install
@@ -329,9 +329,9 @@ been installed in ROM).
   The requirement to provide Installation Information does not include a
 requirement to continue to provide support service, warranty, or updates
 for a work that has been modified or installed by the recipient, or for
-the User Product in which it has been installed.  Access to a network
-may be denied when the modification itself materially and adversely
-affects the operation of the network or violates the rules and
+the User Product in which it has been modified or installed.  Access to a
+network may be denied when the modification itself materially and
+adversely affects the operation of the network or violates the rules and
 protocols for communication across the network.
 
   Corresponding Source conveyed, and Installation Information provided,
@@ -366,7 +366,8 @@ that material) supplement the terms of this License with terms:
     terms of sections 15 and 16 of this License; or
 
     b) Requiring preservation of specified reasonable legal notices or
-    author attributions in that material; or
+    author attributions in that material or in the Appropriate Legal
+    Notices displayed by works containing it; or
 
     c) Prohibiting misrepresentation of the origin of that material, or
     requiring that modified versions of such material be marked in
@@ -422,7 +423,7 @@ prior to 60 days after the cessation.
 reinstated permanently if the copyright holder notifies you of the
 violation by some reasonable means, this is the first time you have
 received notice of violation of this License (for any work) from that
-copyright holder, and you cure the violation prior to 60 days after
+copyright holder, and you cure the violation prior to 30 days after
 your receipt of the notice.
 
   Termination of your rights under this section does not terminate the
@@ -460,17 +461,12 @@ Corresponding Source of the work from the predecessor in interest, if
 the predecessor has it or can get it with reasonable efforts.
 
   You may not impose any further restrictions on the exercise of the
-rights granted or affirmed under this License.  You may not solicit
-payment for exercising rights granted under this License, but you may
-accept voluntary payments in exchange for any of those rights.
-
-  You may not convey a covered work if you are a party to an arrangement
-with a third party that is in the business of distributing software,
-under which you make payment to the third party based on the extent of
-your activity of conveying the work, and under which the third party
-grants, to any of the parties who would receive the covered work from
-you, a discriminatory license that prohibits the exercise of one or
-more of the rights granted under this License.
+rights granted or affirmed under this License.  For example, you may
+not impose a license fee, royalty, or other charge for exercise of
+rights granted under this License, and you may not initiate litigation
+(including a cross-claim or counterclaim in a lawsuit) alleging that
+any patent claim is infringed by making, using, selling, offering for
+sale, or importing the Program or any portion of it.
 
   11. Patents.
 
@@ -529,9 +525,17 @@ specifically granted under this License.  You may not convey a covered
 work if you are a party to an arrangement with a third party that is
 in the business of distributing software, under which you make payment
 to the third party based on the extent of your activity of conveying
-the work, and under which the third party grants, to any of the parties
-who would receive the covered work from you, a discriminatory patent
-license.
+the work, and under which the third party grants, to any of the
+parties who would receive the covered work from you, a discriminatory
+patent license (a) in connection with copies of the covered work
+conveyed by you (or copies made from those copies), or (b) primarily
+for and in connection with specific products or compilations that
+contain the covered work, unless you entered into that arrangement,
+or that patent license was granted, prior to 28 March 2007.
+
+  Nothing in this License shall be construed as excluding or limiting
+any implied license or other defenses to infringement that may
+otherwise be available to you under applicable patent law.
 
   12. No Surrender of Others' Freedom.
 
@@ -542,8 +546,8 @@ covered work so as to satisfy simultaneously your obligations under this
 License and any other pertinent obligations, then as a consequence you may
 not convey it at all.  For example, if you agree to terms that obligate you
 to collect a royalty for further conveying from those to whom you convey
-the work, the only way you could satisfy both those terms and this License
-would be to refrain entirely from conveying the work.
+the Program, the only way you could satisfy both those terms and this
+License would be to refrain entirely from conveying the Program.
 
   13. Use with the GNU Affero General Public License.
 
@@ -643,7 +647,7 @@ the "copyright" line and a pointer to where the full notice is found.
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-  Also add information on how to contact you by electronic and paper mail.
+Also add information on how to contact you by electronic and paper mail.
 
   If the program does terminal interaction, make it output a short
 notice like this when it starts in an interactive mode:
@@ -653,7 +657,7 @@ notice like this when it starts in an interactive mode:
     This is free software, and you are welcome to redistribute it
     under certain conditions; type `show c' for details.
 
-  The hypothetical commands `show w' and `show c' should show the appropriate
+The hypothetical commands `show w' and `show c' should show the appropriate
 parts of the General Public License.  Of course, your program's commands
 might be different; for a GUI interface, you would use an "about box".
 
