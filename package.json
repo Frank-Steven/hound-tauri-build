@@ -7,7 +7,9 @@
   "bin": {
     "hound-tauri-build": "bin/hound-tauri-build.js",
     "hound-tauri-clean": "bin/hound-tauri-clean.js",
-    "hound-tauri-icon": "bin/hound-tauri-icon.js"
+    "hound-tauri-icon": "bin/hound-tauri-icon.js",
+    "hound-tauri-check-docs": "bin/hound-tauri-check-docs.cjs",
+    "hound-tauri-check-modules": "bin/hound-tauri-check-modules.cjs"
   },
   "files": [
     "index.js",
@@ -19,9 +21,7 @@
     "tui-app/",
     "ci/"
   ],
-  "scripts": {
-    "prepublishOnly": "node prepare-lib.js"
-  },
+  "scripts": {},
   "keywords": [
     "hound",
     "whiteboard",
