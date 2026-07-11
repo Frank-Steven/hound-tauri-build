@@ -1,9 +1,9 @@
 /**
- * @file hound-build 入口
+ * @file hound-tauri-build 入口
  * @description 导出 task-runner 核心引擎 API。
  *              自动检测运行环境：优先加载本地副本（npm 发布版），
  *              回退到 monorepo 路径（开发时）。
- * @module hound-build
+ * @module hound-tauri-build
  */
 
 const path = require('path');

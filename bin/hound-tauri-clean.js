@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * @file hound-clean CLI
+ * @file hound-tauri-clean CLI
  * @description 清理构建产物：target / gen / icons / temp。
  *              设置 HOUND_BUILD_ROOT 为当前工作目录后委托 clean.cjs。
- * @module hound-build/bin/hound-clean
+ * @module hound-tauri-build/bin/hound-tauri-clean
  */
 
 const path = require('path');

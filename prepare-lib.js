@@ -2,7 +2,7 @@
  * @file 发布前准备
  * @description 将 scripts/build/ 下的源文件拷贝到包根目录，
  *              使 npm 包自包含，不依赖 monorepo 相对路径。
- * @module hound-build/prepare-lib
+ * @module hound-tauri-build/prepare-lib
  */
 
 const fs = require('fs');

@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * @file hound-build CLI
+ * @file hound-tauri-build CLI
  * @description 构建命令入口：dev / build / build-quick / ship / icon。
  *              设置 HOUND_BUILD_ROOT 为当前工作目录后委托 build-entry.cjs。
- * @module hound-build/bin/hound-build
+ * @module hound-tauri-build/bin/hound-tauri-build
  */
 
 const path = require('path');

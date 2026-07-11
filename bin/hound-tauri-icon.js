@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * @file hound-icon CLI
+ * @file hound-tauri-icon CLI
  * @description 图标生成工具，支持两阶段（generate + copy）和平台选择。
  *              设置 HOUND_BUILD_ROOT 为当前工作目录后委托 gen-icons.cjs。
- * @module hound-build/bin/hound-icon
+ * @module hound-tauri-build/bin/hound-tauri-icon
  */
 
 const path = require('path');

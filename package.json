@@ -1,13 +1,13 @@
 {
-  "name": "hound-build",
+  "name": "hound-tauri-build",
   "version": "0.1.0",
-  "description": "Hound Whiteboard 构建系统 - 基于 TaskDAG + ConflictSet 架构的声明式任务编排与 TUI 构建工具",
+  "description": "Hound Tauri 构建系统 - 基于 TaskDAG + ConflictSet 架构的声明式任务编排与 TUI 构建工具",
   "type": "commonjs",
   "main": "index.js",
   "bin": {
-    "hound-build": "bin/hound-build.js",
-    "hound-clean": "bin/hound-clean.js",
-    "hound-icon": "bin/hound-icon.js"
+    "hound-tauri-build": "bin/hound-tauri-build.js",
+    "hound-tauri-clean": "bin/hound-tauri-clean.js",
+    "hound-tauri-icon": "bin/hound-tauri-icon.js"
   },
   "files": [
     "index.js",
