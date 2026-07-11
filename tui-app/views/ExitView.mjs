@@ -4,9 +4,9 @@
 
 import React from 'react';
 import { Box, Text } from 'ink';
-import { STATUS, STATUS_ICONS, STATUS_COLORS, MIN_TASK, MIN_LOG_VISIBLE, LOG_BORDER, MIN_SCROLL } from '../constants.mjs';
-import { stripAnsi } from '../utils.mjs';
-import TaskRow from '../components/TaskRow.mjs';
+import { MIN_TASK, MIN_LOG_VISIBLE, LOG_BORDER, MIN_SCROLL } from '../constants.mjs';
+import LogPanel from '../components/LogPanel.mjs';
+import TaskTree from '../components/TaskTree.mjs';
 
 /**
  * @param {object} p
@@ -41,6 +41,7 @@ export default function ExitView(p) {
     taskPanelYStart, taskPanelYEnd,
     taskTotalRef, taskVisibleRef,
     logs,
+    selAnchor, selFocus,
   } = p;
 
   // 任务列表 + 滚动指示
@@ -129,64 +130,24 @@ export default function ExitView(p) {
       const t = logs.length;
       const clampedOffset = Math.min(scrollOffset, Math.max(0, t - errorInner));
       const start = t - errorInner - clampedOffset;
-      const end = t - clampedOffset;
-      const windowLines = logs.slice(Math.max(0, start), end)
-        .filter(line => !stripAnsi(line).includes('Skipped'))
-        .slice(0, errorInner);
-      return React.createElement(
-        Box,
-        { flexDirection: 'column', borderStyle: 'round', borderColor: 'red' },
-        ...windowLines.map((line, li) =>
-          React.createElement(Text, { key: `el${li}` }, line),
-        ),
-        errorScroll && React.createElement(
-          Box, null,
-          React.createElement(Text, { color: 'grey' },
-            `  \u2014 ${start + 1}-${Math.min(end, start + errorInner)} / ${t} \u2014`,
-          ),
-        ),
-      );
+      return React.createElement(LogPanel, {
+        logs, start, visible: errorInner,
+        selAnchor, selFocus,
+        borderColor: 'red',
+        hasScroll: errorScroll,
+        total: t,
+      });
     })(),
 
     // ---- 空行分隔 ----
     React.createElement(Box, { height: 1 }),
 
     // ---- 任务终态列表 ----
-    React.createElement(
-      Box,
-      { flexDirection: 'column' },
-      ...exitDisplayed.map((row, ri) => {
-        if (row.indices.length === 1) {
-          const i = row.indices[0];
-          const t = tasks[i] || { status: STATUS.PENDING };
-          return React.createElement(TaskRow, { key: `sr${ri}`, task: t, prefix: row.prefix || null });
-        }
-        const members = row.indices.map((i) => tasks[i] || { status: STATUS.PENDING, elapsed: null });
-        const stepNodes = [];
-        for (let s = 0; s < members.length; s++) {
-          const m = members[s];
-          const ic = STATUS_ICONS[m.status] || m.status;
-          const sc = m.status === STATUS.PENDING ? 'grey' : (m.color || STATUS_COLORS[m.status] || 'white');
-          if (s > 0) {
-            stepNodes.push(React.createElement(Text, { key: `sar${ri}_${s}`, color: 'grey' }, ' \u2192 '));
-          }
-          stepNodes.push(React.createElement(Text, { key: `sic${ri}_${s}`, color: sc }, ic));
-          stepNodes.push(React.createElement(Text, { key: `snm${ri}_${s}`, color: sc }, ` ${m.name}`));
-        }
-        return React.createElement(
-          Box, { key: `sr${ri}` },
-          row.prefix != null && React.createElement(Text, { color: 'grey' }, row.prefix),
-          React.createElement(Text, null, '  '),
-          ...stepNodes,
-        );
-      }),
-      taskScroll && React.createElement(
-        Box, null,
-        React.createElement(Text, { color: 'grey' },
-          `  \u2014 ${exitOffset + 1}-${Math.min(exitOffset + _exitRowCnt, allRows.length)} / ${allRows.length} \u2014`,
-        ),
-      ),
-    ),
+    React.createElement(TaskTree, {
+      rows: exitDisplayed, tasks, keyPrefix: 'e',
+      showScroll: taskScroll,
+      scrollText: `  \u2014 ${exitOffset + 1}-${Math.min(exitOffset + _exitRowCnt, allRows.length)} / ${allRows.length} \u2014`,
+    }),
 
     // ---- 底部弹性空间 ----
     React.createElement(Box, { flexGrow: 1, height: bottomFlex }),

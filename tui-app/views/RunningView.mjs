@@ -4,9 +4,10 @@
 
 import React from 'react';
 import { Box, Text } from 'ink';
-import { STATUS, STATUS_ICONS, STATUS_COLORS, MIN_FIXED, MIN_TASK, MIN_LOG_VISIBLE, LOG_BORDER, MIN_SCROLL, MIN_SCROLL_CONTENT } from '../constants.mjs';
-import { formatElapsed, highlightRange, getLineHighlight } from '../utils.mjs';
-import TaskRow from '../components/TaskRow.mjs';
+import { STATUS, MIN_FIXED, MIN_TASK, MIN_LOG_VISIBLE, LOG_BORDER, MIN_SCROLL, MIN_SCROLL_CONTENT } from '../constants.mjs';
+import { formatElapsed } from '../utils.mjs';
+import LogPanel from '../components/LogPanel.mjs';
+import TaskTree from '../components/TaskTree.mjs';
 
 /**
  * @param {object} p
@@ -119,58 +120,38 @@ export default function RunningView(p) {
     ),
     React.createElement(Box, { height: 1 }),
     // 任务树
-    React.createElement(
-      Box,
-      { flexDirection: 'column' },
-      ...displayedRows.map((row, ri) => {
-        if (row.indices.length === 1) {
-          const i = row.indices[0];
-          const t = tasks[i] || { status: STATUS.PENDING };
-          const liveElapsed = t.status === STATUS.RUNNING && runningSinceRef.current[i] != null
-            ? Date.now() - runningSinceRef.current[i]
-            : null;
-          return React.createElement(TaskRow, { key: `r${ri}`, task: t, liveElapsed, prefix: row.prefix || null });
-        }
-        const members = row.indices.map((i) => tasks[i] || { status: STATUS.PENDING, elapsed: null });
-        const hasRunning = members.some((m) => m.status === STATUS.RUNNING);
+    React.createElement(TaskTree, {
+      rows: displayedRows, tasks, keyPrefix: 'r',
+      getTaskElapsed: (idx) => {
+        const task = tasks[idx];
+        return task?.status === STATUS.RUNNING && runningSinceRef.current[idx] != null
+          ? Date.now() - runningSinceRef.current[idx]
+          : null;
+      },
+      getChainExtra: (members, row) => {
         const allTerminal = members.every((m) => m.status === STATUS.DONE || m.status === STATUS.SKIPPED);
-        let chainLive = null;
-        if (hasRunning) {
-          const runningIdx = row.indices.find((i) => tasks[i]?.status === STATUS.RUNNING);
-          if (runningIdx != null) chainLive = getLiveElapsed(runningIdx);
-        }
-        const stepNodes = [];
-        for (let s = 0; s < members.length; s++) {
-          const m = members[s];
-          const ic = STATUS_ICONS[m.status] || m.status;
-          const sc = m.status === STATUS.PENDING ? 'grey' : (m.color || STATUS_COLORS[m.status] || 'white');
-          if (s > 0) {
-            stepNodes.push(React.createElement(Text, { key: `ar${ri}_${s}`, color: 'grey' }, ' \u2192 '));
-          }
-          stepNodes.push(React.createElement(Text, { key: `ic${ri}_${s}`, color: sc }, ic));
-          stepNodes.push(React.createElement(Text, { key: `nm${ri}_${s}`, color: sc }, ` ${m.name}`));
-        }
         let chainElapsed = null;
         if (allTerminal) {
           chainElapsed = Math.max(...members.map((m) => m.elapsed || 0));
-        } else if (chainLive != null) {
-          chainElapsed = chainLive;
+        } else {
+          const runningIdx = row.indices.find((i) => tasks[i]?.status === STATUS.RUNNING);
+          if (runningIdx != null) {
+            const live = (() => {
+              const t = tasks[runningIdx];
+              return t?.status === STATUS.RUNNING && runningSinceRef.current[runningIdx] != null
+                ? Date.now() - runningSinceRef.current[runningIdx]
+                : null;
+            })();
+            if (live != null) chainElapsed = live;
+          }
         }
-        return React.createElement(
-          Box, { key: `r${ri}` },
-          row.prefix != null && React.createElement(Text, { color: 'grey' }, row.prefix),
-          React.createElement(Text, null, '  '),
-          ...stepNodes,
-          chainElapsed != null && React.createElement(Text, { color: 'grey' }, `  ${formatElapsed(chainElapsed)}`),
-        );
-      }),
-      showIndicator && React.createElement(
-        Box, null,
-        React.createElement(Text, { color: 'grey' },
-          `  \u2014 ${taskOffset + 1}-${taskOffset + _taskRows} / ${taskTotal} \u2014`,
-        ),
-      ),
-    ),
+        return chainElapsed != null
+          ? React.createElement(Text, { color: 'grey' }, `  ${formatElapsed(chainElapsed)}`)
+          : null;
+      },
+      showScroll: showIndicator,
+      scrollText: `  \u2014 ${taskOffset + 1}-${taskOffset + _taskRows} / ${taskTotal} \u2014`,
+    }),
     React.createElement(Box, { height: 1 }),
     // 日志面板
     logs.length > 0 && (() => {
@@ -189,23 +170,14 @@ export default function RunningView(p) {
       taskPanelYEnd.current = taskYBase + displayedRows.length - 1 + (showIndicator ? 1 : 0);
       const clampedOffset = Math.min(scrollOffset, Math.max(0, total - visible));
       const start = total - visible - clampedOffset;
-      const end = total - clampedOffset;
-      const windowLines = logs.slice(Math.max(0, start), end);
-      return React.createElement(
-        Box,
-        { flexGrow: 1, flexDirection: 'column', borderStyle: 'round', borderColor: 'cyan' },
-        ...windowLines.map((line, i) => {
-          const lineIdx = start + i;
-          const hl = getLineHighlight(lineIdx, selAnchor, selFocus);
-          return React.createElement(Text, { key: lineIdx }, hl ? highlightRange(line, hl.startCol, hl.endCol) : line);
-        }),
-        logScroll && React.createElement(
-          Box, null,
-          React.createElement(Text, { color: 'grey' },
-            `  \u2014 ${start + 1}-${end} / ${total} \u2014`,
-          ),
-        ),
-      );
+      return React.createElement(LogPanel, {
+        logs, start, visible,
+        selAnchor, selFocus,
+        borderColor: 'cyan',
+        flexGrow: true,
+        hasScroll: logScroll,
+        total,
+      });
     })(),
   );
 }

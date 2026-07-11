@@ -256,7 +256,7 @@ function App({ port }) {
       termSizeRef.current = { rows: process.stdout.rows || 24, cols: process.stdout.columns || 80 };
       if (gExitReceived) return;
       const srcLines = sourceLogsRef.current;
-      if (srcLines.length === 0) return;
+      if (srcLines.length === 0) { setTick(t => t + 1); return; }
       const newMaxWidth = Math.max(20, (process.stdout.columns || 80) - 4);
       const newLogs = [];
       for (const src of srcLines) {
@@ -431,6 +431,7 @@ function App({ port }) {
       _exitRowCnt, allRows, taskScrollOffset,
       logVisibleRef, logPanelYStart, logPanelYEnd,
       taskPanelYStart, taskPanelYEnd, taskTotalRef, taskVisibleRef,
+      selAnchor, selFocus,
     });
   }
 
@@ -450,14 +451,11 @@ function App({ port }) {
 //  启动
 // ============================================================
 
-// 终端过小时不退出，App 组件内部渲染 SizeWarning 提示页 + resize 事件自动恢复
+// App 组件内部自动检测终端尺寸，过小时渲染 SizeWarning 提示页
+// resize 事件由 App 组件内的 useEffect 处理
 
-gRenderInstance = render(React.createElement(SizeWarning, { terminalHeight: process.stdout.rows }));
+gRenderInstance = render(React.createElement(ErrorBoundaryWrapper, null, React.createElement(App, { port: IPC_PORT })));
 setRenderInstance(gRenderInstance);
-
-setTimeout(() => {
-  try { gRenderInstance.rerender(React.createElement(ErrorBoundaryWrapper, null, React.createElement(App, { port: IPC_PORT }))); } catch (_) {}
-}, 0);
 
 function ErrorBoundaryWrapper({ children }) {
   const [hasError, setHasError] = React.useState(false);
@@ -477,12 +475,3 @@ function ErrorBoundaryWrapper({ children }) {
     return null;
   }
 }
-
-gRenderInstance.rerender(React.createElement(ErrorBoundaryWrapper, null, React.createElement(App, { port: IPC_PORT })));
-
-// resize 触发重渲染
-process.stdout.on('resize', () => {
-  if (!gExiting && gRenderInstance) {
-    try { gRenderInstance.rerender(React.createElement(ErrorBoundaryWrapper, null, React.createElement(App, { port: IPC_PORT }))); } catch (_) {}
-  }
-});

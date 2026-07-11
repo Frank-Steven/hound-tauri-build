@@ -1,6 +1,6 @@
 {
   "name": "hound-tauri-build",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Hound Tauri 构建系统 - 基于 TaskDAG + ConflictSet 架构的声明式任务编排与 TUI 构建工具",
   "type": "commonjs",
   "main": "index.js",

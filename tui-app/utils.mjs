@@ -20,6 +20,12 @@ export function isErrorLine(line) {
 //  ANSI / 文本处理
 // ============================================================
 
+export function parseBullet(line) {
+  const m = line.match(/^(\x1b\[(\d+)m\u25cf\x1b\[0m) /);
+  if (!m) return null;
+  return { color: m[2], bullet: m[1] + ' ', rest: line.slice(m[0].length) };
+}
+
 export function stripAnsi(str) {
   return str.replace(OSC_RE, '').replace(ANSI_RE, '');
 }
@@ -137,6 +143,85 @@ export function getPrefixSkip(plain) {
   return 0;
 }
 
+/**
+ * 将一行文本按照高亮范围拆分为三段（before / selected / after）。
+ * 选中段（selected）剥离了原始 ANSI 码，避免干扰 Ink 的 backgroundColor / color 样式。
+ * 非选中段保留原始 ANSI 码以维持原有着色。
+ *
+ * @param {string} line  原始行（可能含 ANSI 码）
+ * @param {number} startCol  选中起始视觉列
+ * @param {number} endCol    选中结束视觉列
+ * @returns {{ before: string, selected: string, after: string }|null}
+ */
+export function splitLineForHighlight(line, startCol, endCol) {
+  const plain = stripAnsi(line);
+  const prefixSkip = getPrefixSkip(plain);
+  startCol = Math.max(startCol, prefixSkip);
+  if (startCol >= endCol) return null;
+  const totalWidth = visualWidth(plain);
+  if (startCol >= totalWidth) return null;
+  const effEnd = endCol === Infinity || !isFinite(endCol) ? totalWidth : Math.min(endCol, totalWidth);
+  if (startCol >= effEnd) return null;
+
+  // 解析为 ANSI / 文本 片段
+  const segments = [];
+  let lastEnd = 0;
+  let match;
+  ANSI_RE.lastIndex = 0;
+  while ((match = ANSI_RE.exec(line)) !== null) {
+    if (match.index > lastEnd) {
+      segments.push({ ansi: false, text: line.slice(lastEnd, match.index) });
+    }
+    segments.push({ ansi: true, text: match[0] });
+    lastEnd = match.index + match[0].length;
+  }
+  if (lastEnd < line.length) {
+    segments.push({ ansi: false, text: line.slice(lastEnd) });
+  }
+
+  let before = '';
+  let selected = '';
+  let after = '';
+  let visualCol = 0;
+  // mode: 'before' | 'selected' | 'after'
+  let mode = 'before';
+
+  for (const seg of segments) {
+    if (seg.ansi) {
+      // ANSI 码放到当前 mode 所在的区段；若已在 selected 则移到 after 避免干扰 Ink 样式
+      if (mode === 'before') before += seg.text;
+      else after += seg.text;
+      continue;
+    }
+    for (const ch of seg.text) {
+      const cw = isWideChar(ch.codePointAt(0)) ? 2 : 1;
+      const nextCol = visualCol + cw;
+
+      if (mode === 'before' && nextCol <= startCol) {
+        before += ch;
+      } else if (mode === 'before') {
+        // 进入选中区
+        mode = 'selected';
+        selected += ch;
+      } else if (mode === 'selected' && nextCol <= effEnd) {
+        selected += ch;
+      } else if (mode === 'selected') {
+        // 离开选中区
+        mode = 'after';
+        after += ch;
+      } else {
+        after += ch;
+      }
+      visualCol = nextCol;
+    }
+  }
+
+  return { before, selected, after };
+}
+
+/**
+ * @deprecated 保留以保持向后兼容；新代码请使用 splitLineForHighlight 配合 Ink 组件样式
+ */
 export function highlightRange(line, startCol, endCol) {
   const plain = stripAnsi(line);
   const prefixSkip = getPrefixSkip(plain);
