@@ -1,0 +1,13 @@
+# 发布时从 scripts/build/ 拷贝的文件（prepublishOnly 生成）
+task-runner.cjs
+build-entry.cjs
+clean.cjs
+gen-icons.cjs
+copy-keystore.cjs
+icon-config.json
+tasks/
+tui-app/
+ci/
+
+# 依赖
+node_modules/
