@@ -1,7 +1,7 @@
 {
   "name": "hound-tauri-build",
   "version": "0.2.3",
-  "description": "Hound Tauri 构建系统 - 基于 TaskDAG + ConflictSet 架构的声明式任务编排与 TUI 构建工具",
+  "description": "Hound Tauri 构建系统 - 声明式任务编排与 TUI 构建工具",
   "type": "commonjs",
   "main": "index.js",
   "bin": {
@@ -11,17 +11,14 @@
   },
   "files": [
     "index.js",
-    "prepare-lib.js",
     "bin/",
     "*.cjs",
     "icon-config.json",
     "tasks/",
     "tui-app/"
   ],
-  "scripts": {},
   "keywords": [
     "hound",
-    "whiteboard",
     "build",
     "task-runner",
     "dag",
@@ -38,9 +35,7 @@
     "url": "git+https://github.com/Frank-Steven/hound-tauri-build.git"
   },
   "peerDependencies": {
-    "@tauri-apps/cli": "^2.0.0",
-    "ink": "5",
-    "react": "18"
+    "@tauri-apps/cli": "^2.0.0"
   },
   "engines": {
     "node": ">=18"
