@@ -356,92 +356,6 @@ function resolveTaskGraph(targetIds, registry) {
 }
 
 // ============================================================
-//  依赖树
-// ============================================================
-
-/**
- * 构建倒置依赖树：从根任务（无被依赖者）向下展开 dependsOn。
- * 线性链（唯一父子）折叠为 "A → B" 单行。共享依赖在多个分支各出现一次。
- * @param {Array<object>} taskList - 拓扑排序后的任务列表
- * @returns {Array<{ name: string, color: string, indices: number[], prefix: string }>}
- */
-function buildTaskTree(taskList) {
-  const taskMap = new Map();
-  for (const t of taskList) taskMap.set(t.id, t);
-
-  const dag = new TaskDAG(taskList);
-
-  // 找根：没有被任何其他任务依赖的任务
-  const hasDependent = new Set();
-  for (const t of taskList) {
-    for (const depId of t.dependsOn) hasDependent.add(depId);
-  }
-  const roots = taskList.filter((t) => !hasDependent.has(t.id));
-
-  /** @type {Array<{ name: string, color: string, indices: number[], prefix: string }>} */
-  const rows = [];
-
-  /**
-   * 沿 dependsOn 方向收集线性链：当前节点有唯一依赖，且该依赖有唯一被依赖者。
-   * @param {string} startId
-   * @returns {string[]} 链成员 ID 列表（含 startId）
-   */
-  function collectChain(startId) {
-    const members = [startId];
-    let cur = startId;
-    while (true) {
-      const node = dag.nodes.get(cur);
-      if (node.parents.size !== 1) break;
-      const parentId = [...node.parents][0];
-      const parent = dag.nodes.get(parentId);
-      if (parent.children.size !== 1) break;
-      members.push(parentId);
-      cur = parentId;
-    }
-    // 反转：使链按执行顺序排列（先执行的在前）
-    members.reverse();
-    return members;
-  }
-
-  /**
-   * 递归渲染节点（含链折叠）
-   * @param {string} taskId
-   * @param {string} prefix - 累积缩进
-   * @param {number} depth - 当前深度
-   */
-  function renderNode(taskId, prefix, depth) {
-    const task = taskMap.get(taskId);
-    if (!task) return;
-
-    // 收集从此节点开始的线性链
-    const chainIds = collectChain(taskId);
-    const chainNodes = chainIds.map((id) => dag.nodes.get(id));
-    const indices = chainNodes.map((n) => n.index);
-    const name = chainIds.length === 1
-      ? taskMap.get(chainIds[0]).description
-      : chainIds.map((id) => taskMap.get(id).description).join(' \u2192 ');
-    const color = COLOR_PALETTE[indices[0] % COLOR_PALETTE.length];
-
-    rows.push({ name, color, indices, prefix, depth });
-
-    // 展开链首节点（执行顺序最先）的依赖
-    const rootId = chainIds[0];
-    const rootTask = taskMap.get(rootId);
-    const deps = rootTask.dependsOn || [];
-    const childPrefix = prefix + '  ';
-    for (let i = 0; i < deps.length; i++) {
-      renderNode(deps[i], childPrefix, depth + 1);
-    }
-  }
-
-  for (let i = 0; i < roots.length; i++) {
-    renderNode(roots[i].id, '', 0);
-  }
-
-  return rows;
-}
-
-// ============================================================
 //  执行
 // ============================================================
 
@@ -454,34 +368,12 @@ const DEFAULT_MAX_RETRIES = 3;
 /** 重试基础延迟（ms），指数退避：delay * 2^(attempt-1) */
 const RETRY_BASE_DELAY = 1000;
 
-/** 并行任务颜色调色板（TUI 命名色 → ANSI 转义码），14 色确保区分 */
-const COLOR_PALETTE = [
-  'cyan', 'yellow', 'magenta', 'blue', 'green', 'red', 'white',
-  'cyanBright', 'yellowBright', 'magentaBright', 'blueBright', 'greenBright', 'redBright', 'whiteBright',
-];
-const COLOR_ANSI = {
-  cyan: '\x1b[36m',
-  yellow: '\x1b[33m',
-  magenta: '\x1b[35m',
-  blue: '\x1b[34m',
-  green: '\x1b[32m',
-  red: '\x1b[31m',
-  white: '\x1b[37m',
-  cyanBright: '\x1b[96m',
-  yellowBright: '\x1b[93m',
-  magentaBright: '\x1b[95m',
-  blueBright: '\x1b[94m',
-  greenBright: '\x1b[92m',
-  redBright: '\x1b[91m',
-  whiteBright: '\x1b[97m',
-};
-
 /**
  * 执行回调接口
  * @typedef {object} RunCallbacks
- * @property {(payload: { tasks: Array<{ name: string, color: string }>, rows: Array<{ name: string, color: string, indices: number[], prefix: string }> } | string[]) => void} onInit
- * @property {(index: number, status: string, elapsed?: number, extra?: object) => void} onStatus
- * @property {(text: string) => void} onLog
+ * @property {(tasks: Array<{ id: string, description: string, dependsOn: string[] }>) => void} onInit
+ * @property {(id: string, status: string, elapsed?: number) => void} onStatus
+ * @property {(text: string, taskId?: string) => void} onLog
  * @property {(ok: boolean) => void} onExit
  */
 
@@ -489,9 +381,10 @@ const COLOR_ANSI = {
  * 静默执行 shell 命令（TUI 模式：捕获输出通过 onLog 发送）
  * @param {string} cmd - shell 命令
  * @param {RunCallbacks} cb
+ * @param {{ signaled: boolean }} [abort] - 外部中止信号，poll 检测到后 kill 子进程
  * @returns {Promise<boolean>}
  */
-function runCmdSilent(cmd, cb) {
+function runCmdSilent(cmd, cb, abort) {
   return new Promise((resolve) => {
     const child = spawn(cmd, [], {
       cwd: ROOT_DIR,
@@ -499,6 +392,17 @@ function runCmdSilent(cmd, cb) {
       stdio: ['ignore', 'pipe', 'pipe'],
       env: { ...process.env, FORCE_COLOR: '1' },
     });
+
+    // 监听 abort：轮询检测，信号到位立即杀子进程
+    if (abort) {
+      const timer = setInterval(() => {
+        if (abort.signaled) {
+          clearInterval(timer);
+          try { child.kill(); } catch (_) {}
+        }
+      }, 50);
+      child.on('close', () => clearInterval(timer));
+    }
 
     let buf = '';
     child.stdout.setEncoding('utf8');
@@ -545,22 +449,34 @@ function runCmdInherit(cmd) {
 /**
  * 执行单个任务（含自动重试）
  * 失败时按指数退避重试，最多 retry 次（默认 3）。
- * 重试信息通过 onLog 输出到 TUI 日志面板。
  * @param {object} task - 任务定义
  * @param {'tui'|'inline'} mode
  * @param {RunCallbacks} [cb]
+ * @param {string} [taskId] - 任务 ID，用于日志关联
+ * @param {{ signaled: boolean }} [abort] - 外部中止信号
  * @returns {Promise<boolean>}
  */
-async function executeOneTask(task, mode, cb) {
+async function executeOneTask(task, mode, cb, taskId, abort) {
   const maxRetries = task.retry != null ? task.retry : DEFAULT_MAX_RETRIES;
 
+  // 包装回调：所有 onLog 自动归属到当前任务
+  const wcb = cb ? {
+    onLog: (text) => cb.onLog(text, taskId),
+    onStatus: (id, s, e) => cb.onStatus(id, s, e),
+    onInit: (tasks) => cb.onInit(tasks),
+    onExit: (ok) => cb.onExit(ok),
+  } : null;
+
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    if (abort && abort.signaled) return false;
+
     if (attempt > 0) {
       const delayMs = Math.min(RETRY_BASE_DELAY * Math.pow(2, attempt - 1), 30000);
-      if (cb) {
-        cb.onLog(`[retry] ${task.description}: attempt ${attempt}/${maxRetries}, waiting ${delayMs / 1000}s...`);
+      if (wcb) {
+        wcb.onLog(`[retry] ${task.description}: attempt ${attempt}/${maxRetries}, waiting ${delayMs / 1000}s...`);
       }
       await new Promise((r) => setTimeout(r, delayMs));
+      if (abort && abort.signaled) return false;
     }
 
     let ok;
@@ -568,7 +484,7 @@ async function executeOneTask(task, mode, cb) {
       try { ok = task.run.fn() !== false; } catch (_) { ok = false; }
     } else if (task.run.cmd) {
       ok = mode === 'tui'
-        ? await runCmdSilent(task.run.cmd, cb)
+        ? await runCmdSilent(task.run.cmd, wcb, abort)
         : await runCmdInherit(task.run.cmd);
     } else {
       ok = true;
@@ -576,8 +492,8 @@ async function executeOneTask(task, mode, cb) {
 
     if (ok) return true;
 
-    if (cb && attempt < maxRetries) {
-      cb.onLog(`[retry] ${task.description}: failed, will retry (${maxRetries - attempt} left)`);
+    if (wcb && attempt < maxRetries) {
+      wcb.onLog(`[retry] ${task.description}: failed, will retry (${maxRetries - attempt} left)`);
     }
   }
 
@@ -585,36 +501,43 @@ async function executeOneTask(task, mode, cb) {
 }
 
 /**
- * 串行执行（inline 模式用）
+ * 串行执行（inline/回退模式用）
  * @param {Array} taskList
  * @param {'tui'|'inline'} mode
  * @param {RunCallbacks} [cb]
+ * @param {{ signaled: boolean }} [abort] - 外部中止信号
  * @returns {Promise<boolean>}
  */
-async function executeTasksSequential(taskList, mode, cb) {
+async function executeTasksSequential(taskList, mode, cb, abort) {
   if (cb) {
-    const flatTasks = taskList.map((t, i) => ({ name: t.description, color: COLOR_PALETTE[i % COLOR_PALETTE.length] }));
-    cb.onInit({ tasks: flatTasks, rows: buildTaskTree(taskList) });
+    cb.onInit(taskList.map((t) => ({ id: t.id, description: t.description, dependsOn: t.dependsOn })));
   }
 
   let allOk = true;
 
   for (let i = 0; i < taskList.length; i++) {
+    if (abort && abort.signaled) {
+      if (cb) {
+        for (let j = i; j < taskList.length; j++) cb.onStatus(taskList[j].id, 'skipped');
+        cb.onExit(false);
+      }
+      return false;
+    }
+
     const task = taskList[i];
     const start = Date.now();
 
-    if (cb) cb.onStatus(i, 'running');
-    const ok = await executeOneTask(task, mode, cb);
+    if (cb) cb.onStatus(task.id, 'running');
+    const ok = await executeOneTask(task, mode, cb, task.id, abort);
     const elapsed = Date.now() - start;
 
     if (ok) {
-      if (cb) cb.onStatus(i, 'done', elapsed);
+      if (cb) cb.onStatus(task.id, 'done', elapsed);
     } else {
-      if (cb) cb.onStatus(i, 'failed', elapsed);
+      if (cb) cb.onStatus(task.id, 'failed', elapsed);
       allOk = false;
-      // 标记剩余任务为 skipped
       for (let j = i + 1; j < taskList.length; j++) {
-        if (cb) cb.onStatus(j, 'skipped');
+        if (cb) cb.onStatus(taskList[j].id, 'skipped');
       }
       break;
     }
@@ -631,13 +554,11 @@ async function executeTasksSequential(taskList, mode, cb) {
  * @param {Array} taskList - 拓扑排序后的任务定义数组
  * @param {'tui'|'inline'} mode
  * @param {RunCallbacks} cb - TUI 回调
+ * @param {{ signaled: boolean }} [abort] - 外部中止信号
  * @returns {Promise<boolean>}
  */
-async function executeTasksParallel(taskList, mode, cb) {
-  cb.onInit({
-    tasks: taskList.map((t, i) => ({ name: t.description, color: COLOR_PALETTE[i % COLOR_PALETTE.length] })),
-    rows: buildTaskTree(taskList),
-  });
+async function executeTasksParallel(taskList, mode, cb, abort) {
+  cb.onInit(taskList.map((t) => ({ id: t.id, description: t.description, dependsOn: t.dependsOn })));
 
   const dag = new TaskDAG(taskList);
   const conflicts = new ConflictSet();
@@ -650,27 +571,26 @@ async function executeTasksParallel(taskList, mode, cb) {
 
   let resolveDone;
   const donePromise = new Promise((r) => { resolveDone = r; });
-
-  /**
-   * 为任务创建带颜色标记的回调包装，日志行以彩色 ● 为前缀
-   * @param {string} colorName - 颜色名
-   * @returns {RunCallbacks}
-   */
-  function makeColoredCb(colorName) {
-    const ansi = COLOR_ANSI[colorName] || '';
-    return {
-      onLog: (text) => cb.onLog(`${ansi}\u25cf\x1b[0m ${text}`),
-      onStatus: (i, s, e, extra) => cb.onStatus(i, s, e, extra),
-      onInit: cb.onInit,
-      onExit: cb.onExit,
-    };
-  }
+  let finished = false;
 
   /**
    * 尝试调度：从 ready 集合中取出可执行的任务并启动。
    * 单任务失败不中止全局 —— 仅阻断其子孙，独立分支继续执行。
    */
   function trySchedule() {
+    if (finished) return;
+
+    // 外部中止：杀子进程，标记未完成，退出
+    if (abort && abort.signaled) {
+      finished = true;
+      for (const node of dag.nodes.values()) {
+        if (!completed.has(node.task.id)) cb.onStatus(node.task.id, 'skipped');
+      }
+      cb.onExit(false);
+      resolveDone();
+      return;
+    }
+
     for (const id of [...ready]) {
       if (running.size >= MAX_CONCURRENT) break;
 
@@ -679,28 +599,26 @@ async function executeTasksParallel(taskList, mode, cb) {
 
       ready.delete(id);
       const task = node.task;
-      const index = node.index;
-      const colorName = COLOR_PALETTE[index % COLOR_PALETTE.length];
 
-      cb.onStatus(index, 'running');
+      cb.onStatus(task.id, 'running');
 
-      const taskCb = makeColoredCb(colorName);
       const start = Date.now();
 
-      const promise = executeOneTask(task, mode, taskCb).then((ok) => {
+      const promise = executeOneTask(task, mode, cb, task.id, abort).then((ok) => {
+        // 中止后不再处理子进程结束事件
+        if (finished) return;
+
         const elapsed = Date.now() - start;
         running.delete(id);
         conflicts.release(node);
         completed.add(id);
 
         if (ok) {
-          cb.onStatus(index, 'done', elapsed);
-          // 解锁子孙，失败的子孙不会被添加（没有 onDone → remainingDeps 保持 >0）
+          cb.onStatus(task.id, 'done', elapsed);
           for (const uid of dag.onDone(id)) ready.add(uid);
         } else {
-          cb.onStatus(index, 'failed', elapsed);
+          cb.onStatus(task.id, 'failed', elapsed);
           allOk = false;
-          // 不调用 onDone：子孙 remainingDeps 保持 >0，永不可达
         }
 
         trySchedule();
@@ -710,11 +628,11 @@ async function executeTasksParallel(taskList, mode, cb) {
     }
 
     // 终止条件：无就绪任务且无运行中任务
-    if (ready.size === 0 && running.size === 0) {
-      // 标记不可达任务为 skipped
+    if (!finished && ready.size === 0 && running.size === 0) {
+      finished = true;
       for (const node of dag.nodes.values()) {
         if (!completed.has(node.task.id)) {
-          cb.onStatus(node.index, 'skipped');
+          cb.onStatus(node.task.id, 'skipped');
         }
       }
       cb.onExit(allOk);
@@ -722,8 +640,17 @@ async function executeTasksParallel(taskList, mode, cb) {
     }
   }
 
+  // 轮询 abort，确保无任务完成时也能检测到中止信号
+  let abortTimer;
+  if (abort) {
+    abortTimer = setInterval(() => {
+      if (abort.signaled) trySchedule();
+    }, 100);
+  }
+
   trySchedule();
   await donePromise;
+  if (abortTimer) clearInterval(abortTimer);
 
   return allOk;
 }
@@ -735,11 +662,11 @@ async function executeTasksParallel(taskList, mode, cb) {
  * @param {RunCallbacks} [tuiCallbacks] - TUI 模式回调
  * @returns {Promise<boolean>} 是否全部成功
  */
-async function executeTasks(taskList, mode, tuiCallbacks) {
+async function executeTasks(taskList, mode, tuiCallbacks, abort) {
   if (mode === 'tui' && tuiCallbacks) {
-    return executeTasksParallel(taskList, mode, tuiCallbacks);
+    return executeTasksParallel(taskList, mode, tuiCallbacks, abort);
   }
-  return executeTasksSequential(taskList, mode, tuiCallbacks || null);
+  return executeTasksSequential(taskList, mode, tuiCallbacks || null, abort);
 }
 
 // ============================================================

@@ -16,7 +16,7 @@ const TUI_PATH = path.join(__dirname, 'tui-app', 'index.mjs');
 // ============================================================
 
 const ALL_PLATFORMS = ['desktop', 'mac', 'win', 'linux', 'android', 'ios', 'desktop-platforms', 'mobile', 'all'];
-const ICON_PLATFORMS = ['desktop', 'mac', 'win', 'linux', 'android', 'ios', 'common'];
+const ICON_PLATFORMS = ['desktop', 'mac', 'win', 'linux', 'android', 'ios'];
 /**
  * 图标命令只需指定 copy 任务（generate 通过依赖自动触发）
  */
@@ -38,7 +38,7 @@ const COMMAND_TASKS = {
     linux: ['build:linux'],
     android: ['build:android'],
     ios: ['build:ios'],
-    'desktop-platforms': ['build:desktop-platforms'],
+    'desktop-platforms': ['build:desktop'],
     mobile: ['build:mobile'],
     all: ['build:all'],
   },
@@ -50,7 +50,7 @@ const COMMAND_TASKS = {
     linux: ['test', 'build:linux'],
     android: ['test', 'build:android'],
     ios: ['test', 'build:ios'],
-    'desktop-platforms': ['test', 'build:desktop-platforms'],
+    'desktop-platforms': ['test', 'build:desktop'],
     mobile: ['test', 'build:mobile'],
     all: ['test', 'build:all'],
   },
@@ -58,22 +58,23 @@ const COMMAND_TASKS = {
 
 /** dev 命令在依赖任务完成后还需要 spawn tauri dev */
 const DEV_SETUP_TASKS = {
-  desktop: ['deps', 'icon:copy:desktop'],
-  mac: ['deps', 'icon:copy:mac'],
-  win: ['deps', 'icon:copy:win'],
-  linux: ['deps', 'icon:copy:linux'],
-  android: ['deps', 'android:init', 'icon:copy:android', 'icon:copy:common'],
-  ios: ['deps', 'icon:copy:ios', 'icon:copy:common'],
+  desktop: ['deps', 'icon:generate:desktop'],
+  mac: ['deps', 'icon:generate:mac'],
+  win: ['deps', 'icon:generate:win'],
+  linux: ['deps', 'icon:generate:linux'],
+  android: ['deps', 'android:init', 'icon:generate:android'],
+  ios: ['deps', 'icon:generate:ios'],
 };
 
 /** dev 命令的长运行进程 */
+const GEN = `node "${path.join(__dirname, 'gen-icons.cjs')}"`;
 const DEV_CMD = {
-  desktop: 'tauri dev',
-  mac: 'tauri dev',
-  win: 'tauri dev',
-  linux: 'tauri dev',
-  android: 'tauri android dev',
-  ios: 'tauri ios dev',
+  desktop: `${GEN} desktop --phase=copy && tauri dev`,
+  mac: `${GEN} mac --phase=copy && tauri dev`,
+  win: `${GEN} win --phase=copy && tauri dev`,
+  linux: `${GEN} linux --phase=copy && tauri dev`,
+  android: `${GEN} android --phase=copy && tauri android dev`,
+  ios: `${GEN} ios --phase=copy && tauri ios dev`,
 };
 
 /** build-quick 命令的构建命令 */
@@ -203,14 +204,14 @@ async function waitTuiExit() {
  */
 function createTuiAdapter() {
   return {
-    onInit(payload) {
-      sendTui({ type: 'init', ...payload });
+    onInit(tasks) {
+      sendTui({ type: 'init', tasks });
     },
-    onStatus(index, status, elapsed, extra) {
-      sendTui({ type: 'status', index, status, elapsed, ...(extra || {}) });
+    onStatus(id, status, elapsed) {
+      sendTui({ type: 'status', id, status, elapsed });
     },
-    onLog(text) {
-      sendTui({ type: 'log', text });
+    onLog(text, taskId) {
+      sendTui({ type: 'log', text, taskId });
     },
     onExit(ok) {
       sendTui({ type: 'exit', ok });
@@ -229,28 +230,24 @@ function createTuiAdapter() {
  */
 function createCollector(target) {
   let tasks = [];
-  let statuses = [];
-  let rows = [];
+  let statuses = {};
   let allLogs = [];
   let exitOk = false;
 
   return {
     cb: {
-      onInit(payload) {
-        tasks = payload.tasks || [];
-        rows = payload.rows || [];
-        statuses = tasks.map(() => ({ status: 'pending', elapsed: null }));
-        if (target) target.onInit(payload);
+      onInit(tasks_) {
+        tasks = tasks_;
+        for (const t of tasks_) statuses[t.id] = { status: 'pending', elapsed: null };
+        if (target) target.onInit(tasks_);
       },
-      onStatus(index, status, elapsed, extra) {
-        if (index < statuses.length) {
-          statuses[index] = { status, elapsed: elapsed || null };
-        }
-        if (target) target.onStatus(index, status, elapsed, extra);
+      onStatus(id, status, elapsed) {
+        statuses[id] = { status, elapsed: elapsed || null };
+        if (target) target.onStatus(id, status, elapsed);
       },
-      onLog(text) {
-        allLogs.push(text);
-        if (target) target.onLog(text);
+      onLog(text, taskId) {
+        allLogs.push({ text, taskId });
+        if (target) target.onLog(text, taskId);
       },
       onExit(ok) {
         exitOk = ok;
@@ -258,17 +255,17 @@ function createCollector(target) {
       },
     },
     getSummary() {
-      return { tasks, statuses, rows, allLogs, exitOk };
+      return { tasks, statuses, allLogs, exitOk };
     },
   };
 }
 
 /**
- * 打印构建结果摘要（与 TUI 结算画面格式一致，日志面板展开）
- * @param {{ tasks, statuses, rows, allLogs, exitOk }} summary
+ * 打印构建结果摘要
+ * @param {{ tasks, statuses, allLogs, exitOk }} summary
  */
 function printSummary(summary) {
-  // noop
+  // 纯后端模式：不处理前端输出，TUI 前端负责所有渲染
 }
 
 // ============================================================
@@ -306,10 +303,17 @@ async function runWithTuiOrFallback(targetIds) {
     return ok;
   }
 
+  const abort = { signaled: false };
+
   const tuiAdapter = createTuiAdapter();
   const collector = createCollector(tuiAdapter);
-  const ok = await executeResolved(targetIds, 'tui', collector.cb);
-  await waitTuiExit();
+
+  // 监听 TUI 退出 → 设置中止信号
+  tuiSock.on('close', () => { abort.signaled = true; });
+  tuiSock.on('error', () => { abort.signaled = true; });
+
+  const ok = await executeResolved(targetIds, 'tui', collector.cb, abort);
+  if (isTuiAlive()) await waitTuiExit();
   // 等待 TUI 的 stdout 缓冲区完全刷新，避免 printSummary 输出交叠
   await new Promise((r) => setTimeout(r, 200));
   printSummary(collector.getSummary());
@@ -323,7 +327,7 @@ async function runWithTuiOrFallback(targetIds) {
  * @param {RunCallbacks} cb
  * @returns {Promise<boolean>}
  */
-async function executeResolved(targetIds, mode, cb) {
+async function executeResolved(targetIds, mode, cb, abort) {
   const registry = loadTaskRegistry();
   const { ordered, errors } = resolveTaskGraph(targetIds, registry);
 
@@ -332,7 +336,7 @@ async function executeResolved(targetIds, mode, cb) {
     return false;
   }
 
-  return executeTasks(ordered, mode, cb);
+  return executeTasks(ordered, mode, cb, abort);
 }
 
 // ============================================================
