@@ -22,10 +22,17 @@ const RST = '\x1b[0m';
 const BOLD = '\x1b[1m';
 const DIM  = '\x1b[2m';
 
-function fmtTime(ms) {
+export function fmtTime(ms) {
   if (ms == null) return '';
   if (ms < 1000) return `${ms}ms`;
-  return `${(ms / 1000).toFixed(1)}s`;
+  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+  const s = Math.floor(ms / 1000);
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  if (m < 60) return `${m}m${sec}s`;
+  const h = Math.floor(m / 60);
+  const min = m % 60;
+  return `${h}h${min}m${sec}s`;
 }
 
 // 二态复选框：0=隐藏 1=显示

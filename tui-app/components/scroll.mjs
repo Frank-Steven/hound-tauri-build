@@ -108,22 +108,24 @@ export function scroll(height, width, content, maxIndex, cursorLine) {
 /**
  * @param {object} opts
  * @param {number} [opts.maxIndex=0]
+ * @param {boolean} [opts.sticky=false] - 吸附滚动：内容增长时自动跟底，用户上滚后取消
+ * @param {() => boolean} [opts.isPinned] - 为 true 时冻结滚动位置，不跟随新内容（用于选择文本等场景）
  * @param {(k: object) => boolean} [opts.matchKey]
  * @param {() => void} [opts.onUpdate] — 状态变化后立即调用（如触发重绘）
  * @param {() => boolean} [opts.isDisabled] — 为 true 时屏蔽滚轮/键盘滚动
- * @returns {{ state: { maxIndex: number }, render: (h,w,content) => string[], destroy: () => void, setRect: (y,height) => void }}
+ * @returns {{ state: { maxIndex: number, sticky: boolean }, render: (h,w,content) => string[], destroy: () => void, setRect: (y,height) => void }}
  */
 export function useScroll(opts = {}) {
-  const { maxIndex = 0, matchKey, onUpdate, isDisabled } = opts;
-  const state = { maxIndex, contentLength: 0, viewHeight: 0 };
+  const { maxIndex = 0, sticky: enableSticky = false, isPinned, matchKey, onUpdate, isDisabled } = opts;
+  const state = { maxIndex, contentLength: 0, viewHeight: 0, sticky: enableSticky };
   let rect = null;
 
-  function mkUp()    { if (state.maxIndex > 0) { state.maxIndex--; onUpdate?.(); } }
-  function mkDown()  { if (state.maxIndex < state.contentLength - 1) { state.maxIndex++; onUpdate?.(); } }
-  function mkPageUp()  { state.maxIndex = Math.max(0, state.maxIndex - Math.max(1, state.viewHeight - 1)); onUpdate?.(); }
-  function mkPageDown(){ state.maxIndex = Math.min(state.contentLength - 1, state.maxIndex + Math.max(1, state.viewHeight - 1)); onUpdate?.(); }
-  function mkHome()    { state.maxIndex = 0; onUpdate?.(); }
-  function mkEnd()     { state.maxIndex = state.contentLength - 1; onUpdate?.(); }
+  function mkUp()    { if (state.maxIndex > 0) { state.maxIndex--; state.sticky = false; onUpdate?.(); } }
+  function mkDown()  { if (state.maxIndex < state.contentLength - 1) { state.maxIndex++; if (state.maxIndex === state.contentLength - 1) state.sticky = true; onUpdate?.(); } }
+  function mkPageUp()  { state.maxIndex = Math.max(0, state.maxIndex - Math.max(1, state.viewHeight - 1)); state.sticky = false; onUpdate?.(); }
+  function mkPageDown(){ state.maxIndex = Math.min(state.contentLength - 1, state.maxIndex + Math.max(1, state.viewHeight - 1)); if (state.maxIndex === state.contentLength - 1) state.sticky = true; onUpdate?.(); }
+  function mkHome()    { state.maxIndex = 0; state.sticky = false; onUpdate?.(); }
+  function mkEnd()     { state.maxIndex = state.contentLength - 1; state.sticky = true; onUpdate?.(); }
 
   const onKey = (k) => {
     if (isDisabled && isDisabled()) return;
@@ -151,7 +153,9 @@ export function useScroll(opts = {}) {
   function render(height, width, content, cursorLine) {
     state.contentLength = content.length;
     state.viewHeight = height;
-    // 与 scroll() 内部 clamp 保持同步，供 click handler 使用
+    // 吸附滚动：用户未主动上滚时，新内容到达自动跟底（pinned 时禁止）
+    if (state.sticky && content.length > 0 && !(isPinned && isPinned())) state.maxIndex = content.length - 1;
+    // clamp
     if (state.maxIndex > content.length - 1) state.maxIndex = content.length - 1;
     if (state.maxIndex < 0) state.maxIndex = 0;
     return scroll(height, width, content, state.maxIndex, cursorLine);

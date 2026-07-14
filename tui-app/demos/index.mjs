@@ -13,57 +13,99 @@ import { flexTwo } from '../utils/flex2.mjs';
 import { wrapLine } from '../utils/wrap-line.mjs';
 import { textWidth, visSlice } from '../utils/text-width.mjs';
 import { getTerminalSize } from '../utils/terminal-size.mjs';
-import { initFocus, focusState, clampCursors, highlightLine, applyLogSelection, highlightSlot, getTreeSlots } from '../utils/focus.mjs';
+import { initFocus, focusState, clampCursors, highlightLine, applyLogSelection, highlightSlot, getTreeSlots, logSel } from '../utils/focus.mjs';
 
 // ── 数据 ────────────────────────────────────────────
 
-const tree = {
-  id: 'build', description: 'build', status: 'running', elapsed: 4500, progress: '2/3',
-  logFilter: 1,
-  children: [
-    { id: 'compile', description: 'compile', status: 'done', elapsed: 12300, progress: '2/2',
-      logFilter: 1, children: [
-      { id: 'rustc', description: 'rustc', status: 'done', elapsed: 10200,
-        logFilter: 1, children: [] },
-      { id: 'tsc', description: 'tsc', status: 'done', elapsed: 2100,
-        logFilter: 1, children: [] },
-    ]},
-    { id: 'bundle', description: 'bundle', status: 'running', elapsed: 3200, progress: '1/2',
-      logFilter: 1, children: [
-      { id: 'webpack', description: 'webpack', status: 'running', elapsed: 3200,
-        logFilter: 1, children: [] },
-      { id: 'rollup', description: 'rollup', status: 'pending', elapsed: 0,
-        logFilter: 1, children: [] },
-    ]},
-    { id: 'test', description: 'test', status: 'pending', elapsed: 0,
-      logFilter: 1, children: [
-      { id: 'unit', description: 'unit', status: 'pending',
-        logFilter: 1, children: [
-        { id: 'unit-core', description: 'unit-core', status: 'pending',
-          logFilter: 1, children: [] },
-      ]},
-      { id: 'e2e', description: 'e2e', status: 'pending', children: [] },
-    ]},
-  ],
-};
+/** 从后端 flat 任务定义构建嵌套树 */
+function buildTreeFromDefs(taskDefs) {
+  const map = new Map();
+  for (const t of taskDefs) {
+    map.set(t.id, { id: t.id, description: t.description, status: 'pending', elapsed: 0, logFilter: 1, children: [] });
+  }
+  const hasParent = new Set();
+  for (const t of taskDefs) {
+    for (const depId of t.dependsOn) {
+      hasParent.add(depId);
+    }
+  }
+  const roots = [];
+  for (const t of taskDefs) {
+    const node = map.get(t.id);
+    for (const depId of t.dependsOn) {
+      const child = map.get(depId);
+      if (child && !node.children.includes(child)) node.children.push(child);
+    }
+    if (!hasParent.has(t.id)) roots.push(node);
+  }
+  return roots.length === 1 ? roots[0] : { id: '_root', description: 'build', status: 'pending', elapsed: 0, logFilter: 1, children: roots };
+}
 
-const logEntries = [
-  { text: 'compiling rustc...', level: 'info', taskId: 'rustc' },
-  { text: '   Compiling hound-core v0.1.0', level: 'info', taskId: 'rustc' },
-  { text: 'building bundle...', level: 'info', taskId: 'webpack' },
-  { text: '   chunk vendor: 234 KB', level: 'info', taskId: 'webpack' },
-  { text: '   chunk app: 56 KB', level: 'info', taskId: 'webpack' },
-  { text: 'rustc done in 12.3s', level: 'success', taskId: 'rustc' },
-  { text: 'tsc done in 3.2s', level: 'success', taskId: 'tsc' },
-  { text: 'WARNING: unused variable', level: 'warning', taskId: 'rustc' },
-  { text: 'ERROR: webpack compilation failed', level: 'error', taskId: 'webpack' },
-  { text: '   Module not found: ./src/missing.ts', level: 'error', taskId: 'webpack' },
-];
+/** 递归查找并更新节点状态 */
+function updateNodeStatus(node, taskId, status, elapsed) {
+  if (node.id === taskId) {
+    node.status = status;
+    if (elapsed != null) node.elapsed = elapsed;
+    return true;
+  }
+  if (node.children) {
+    for (const c of node.children) {
+      if (updateNodeStatus(c, taskId, status, elapsed)) return true;
+    }
+  }
+  return false;
+}
 
-export const filterState = { levels: ['success', 'warning', 'error'], query: '', queryActive: false };
+/** 检测日志等级 */
+function detectLevel(text) {
+  const t = text.toLowerCase();
+  if (/error|fail|exception/i.test(t)) return 'error';
+  if (/warn/i.test(t)) return 'warning';
+  if (/success|done|complete|finished/i.test(t)) return 'success';
+  if (/info/i.test(t)) return 'info';
+  return 'log';
+}
+
+// 可变状态（通过 initFromTasks 初始化）
+let tree = { id: '_root', description: 'build', status: 'pending', elapsed: 0, logFilter: 1, children: [] };
+const logEntries = [];
+const startTimes = new Map();   // taskId → 启动时刻的时间戳 (Date.now() 基准)
+let buildStartTime = 0;         // 全局构建启动时间
+
+export const filterState = { levels: ['success', 'warning', 'info', 'error', 'log'], query: '', queryActive: false };
 export const running = { val: true };
 export const exitPanel = { visible: false, selected: 'n' };
 export { tree, toggleLevel };
+
+/** 从后端任务定义初始化树 */
+export function initFromTasks(taskDefs) {
+  tree = buildTreeFromDefs(taskDefs);
+  logEntries.length = 0;
+  startTimes.clear();
+  buildStartTime = Date.now();
+  running.val = true;
+}
+
+/** 更新任务状态 */
+export function onTaskStatus(taskId, status, elapsed) {
+  if (status === 'running' && !startTimes.has(taskId)) {
+    startTimes.set(taskId, Date.now() - (elapsed || 0));
+  }
+  if (status !== 'running') {
+    startTimes.delete(taskId);
+  }
+  updateNodeStatus(tree, taskId, status, elapsed);
+}
+
+/** 添加日志条目 */
+export function onLogEntry(text, taskId) {
+  logEntries.push({ text, level: detectLevel(text), taskId: taskId || '' });
+}
+
+/** 构建结束 */
+export function onBuildExit(ok) {
+  running.val = false;
+}
 
 // ── 对外接口 ────────────────────────────────────────
 
@@ -75,7 +117,7 @@ export function toggleFinished() { running.val = !running.val; }
 // ── 滚动 ────────────────────────────────────────────
 
 const treeScroll = useScroll({ matchKey: () => false, onUpdate: () => _onUpdate?.(), isDisabled: () => exitPanel.visible });
-const logScroll  = useScroll({ matchKey: k => focusState.focus === 'log' && ['pageup','pagedown'].includes(k.name), onUpdate: () => _onUpdate?.(), isDisabled: () => exitPanel.visible });
+const logScroll  = useScroll({ sticky: true, isPinned: () => logSel.active, matchKey: k => focusState.focus === 'log' && ['pageup','pagedown'].includes(k.name), onUpdate: () => _onUpdate?.(), isDisabled: () => exitPanel.visible });
 
 // ── 布局上下文（makePage 每帧更新，focus 通过 getter 访问）─
 
@@ -231,11 +273,22 @@ export function makePage() {
   // header
   const counts = { pending: 0, running: 0, done: 0, failed: 0, skipped: 0 };
   (function walk(n) { counts[n.status] = (counts[n.status] || 0) + 1; n.children?.forEach(walk); })(tree);
+
+  // 实时更新运行中任务的 elapsed，以及统计 running 计数
+  const now = Date.now();
+  const totalElapsed = buildStartTime ? now - buildStartTime : 0;
+  (function updateLiveElapsed(n) {
+    if (n.status === 'running' && startTimes.has(n.id)) {
+      n.elapsed = now - startTimes.get(n.id);
+    }
+    n.children?.forEach(updateLiveElapsed);
+  })(tree);
+
   const stats = { finished: !running.val, ...counts };
-  const BG = '\x1b[48;5;237m';
+  const BG = '\x1b[48;5;24m';  // 深青蓝，白字对比度高
   const FG = '\x1b[37m';
-  const title = FG + '\x1b[1m' + ' \u2699 Hound ' + '\x1b[0m' + BG + FG;
-  const statusLine = hLayout(buildStatusBar(stats), W - textWidth(' \u2699 Hound ') - 1).line;
+  const title = FG + '\x1b[1m' + ' \u2699 Hound \x1b[22m' + FG;
+  const statusLine = hLayout(buildStatusBar(stats, totalElapsed), W - textWidth(' \u2699 Hound ') - 1).line;
   const header = BG + title + statusLine + ' ' + '\x1b[0m';
 
   // filtered logs

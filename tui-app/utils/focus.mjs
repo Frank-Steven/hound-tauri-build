@@ -474,18 +474,41 @@ export function initFocus(opts) {
     if (e.type !== 'move') return;
     if (!logSel.selecting || !_dragStart) return;
     const ctx = getLogCtx();
-    if (!ctx || !ctx.scrollState) return;
-    if (e.y < ctx.y || e.y >= ctx.y + ctx.height) return;
+    if (!ctx || !ctx.scrollState || ctx.lineToEntry.length === 0) return;
 
     const bodyH = ctx.lineToEntry.length > ctx.height ? ctx.height - 1 : ctx.lineToEntry.length;
     const minIdx = Math.max(0, ctx.scrollState.maxIndex - bodyH + 1);
-    const lineIdx = minIdx + (e.y - ctx.y);
-    if (lineIdx < 0 || lineIdx >= ctx.lineToEntry.length) return;
 
-    logSel.endLine = lineIdx;
-    logSel.endCol = Math.max(PREFIX_W, e.x - 1); // 减去边框 1 列，跳过前缀
-    logSel.active = true;
-    onUpdate();
+    // 鼠标在日志面板内 → 正常跟踪行/列
+    if (e.y >= ctx.y && e.y < ctx.y + ctx.height) {
+      const lineIdx = minIdx + (e.y - ctx.y);
+      if (lineIdx < 0 || lineIdx >= ctx.lineToEntry.length) return;
+      logSel.endLine = lineIdx;
+      logSel.endCol = Math.max(PREFIX_W, e.x - 1);
+      logSel.active = true;
+      onUpdate();
+      return;
+    }
+
+    // 鼠标拖出面板上方 → 向上滚动扩展选区
+    if (e.y < ctx.y && ctx.scrollState.maxIndex > 0) {
+      ctx.scrollState.maxIndex--;
+      logSel.endLine = minIdx - 1;
+      logSel.endCol = PREFIX_W;
+      logSel.active = true;
+      onUpdate();
+      return;
+    }
+
+    // 鼠标拖出面板下方 → 向下滚动扩展选区
+    if (e.y >= ctx.y + ctx.height && ctx.scrollState.maxIndex < ctx.lineToEntry.length - 1) {
+      ctx.scrollState.maxIndex++;
+      logSel.endLine = ctx.scrollState.maxIndex;
+      logSel.endCol = Infinity;
+      logSel.active = true;
+      onUpdate();
+      return;
+    }
   });
 
   on('mouse', (e) => {

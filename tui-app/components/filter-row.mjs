@@ -7,11 +7,11 @@ import { hLayout } from './h-layout.mjs';
 import { toggleLevel } from './filter-bar.mjs';
 import { charWidth } from '../utils/char-width.mjs';
 
-const LEVELS = ['success', 'warning', 'error'];
-const COLORS = { success: '\x1b[32m', warning: '\x1b[33m', error: '\x1b[31m' };
-const LABELS = { success: 'Success', warning: 'Warning', error: 'Error' };
-const NUM_LEVELS = LEVELS.length; // 3
-const SEARCH_IDX = NUM_LEVELS;    // 第 4 项（搜索框）
+const LEVELS = ['success', 'warning', 'info', 'error', 'log'];
+const COLORS = { success: '\x1b[32m', warning: '\x1b[33m', info: '\x1b[36m', error: '\x1b[31m', log: '\x1b[36m' };
+const LABELS = { success: 'Success', warning: 'Warning', info: 'Info', error: 'Error', log: 'Log' };
+const NUM_LEVELS = LEVELS.length; // 5
+const SEARCH_IDX = NUM_LEVELS;    // 第 6 项（搜索框）
 const SEARCH_MIN = 14;
 
 const DIM = '\x1b[2m';

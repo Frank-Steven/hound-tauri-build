@@ -10,7 +10,9 @@ export function filterBar(state) {
   const items = [
     { text: button('Success', { active: state.levels.includes('success'), color: '\x1b[32m' }), width: 9 + 1 },
     { text: button('Warning', { active: state.levels.includes('warning'), color: '\x1b[33m' }), width: 9 + 1 },
-    { text: button('Error',  { active: state.levels.includes('error'), color: '\x1b[31m' }),  width: 7 + 1 },
+    { text: button('Info',   { active: state.levels.includes('info'), color: '\x1b[36m' }),    width: 6 + 1 },
+    { text: button('Error',  { active: state.levels.includes('error'), color: '\x1b[31m' }),    width: 7 + 1 },
+    { text: button('Log',    { active: state.levels.includes('log'), color: '\x1b[36m' }),       width: 5 + 1 },
   ];
   if (state.query) {
     items.push({ text: `"${state.query}"`, width: state.query.length + 3 });
