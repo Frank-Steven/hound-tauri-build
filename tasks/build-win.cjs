@@ -1,13 +1,11 @@
-/**
- * @file build:win 任务
- * @description 构建 Windows（nsis + msi）。
- * @module scripts/build/tasks/build-win
- */
+const path = require('path');
+const GEN_DIR = path.join(__dirname, '..');
+const GEN_CMD = `node "${path.join(GEN_DIR, 'gen-icons.cjs')}"`;
 
 module.exports = {
   id: 'build:win',
   description: 'build win',
-  dependsOn: ['icon:copy:win'],
+  dependsOn: ['icon:generate:win'],
   conflicts: ['resource:cargo-build'],
-  run: { cmd: 'tauri build' },
+  run: { cmd: `${GEN_CMD} win --phase=copy && tauri build` },
 };

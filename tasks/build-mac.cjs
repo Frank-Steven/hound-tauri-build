@@ -1,13 +1,11 @@
-/**
- * @file build:mac 任务
- * @description 构建 macOS（dmg + app bundle）。
- * @module scripts/build/tasks/build-mac
- */
+const path = require('path');
+const GEN_DIR = path.join(__dirname, '..');
+const GEN_CMD = `node "${path.join(GEN_DIR, 'gen-icons.cjs')}"`;
 
 module.exports = {
   id: 'build:mac',
   description: 'build mac',
-  dependsOn: ['icon:copy:mac'],
+  dependsOn: ['icon:generate:mac'],
   conflicts: ['resource:cargo-build'],
-  run: { cmd: 'tauri build' },
+  run: { cmd: `${GEN_CMD} mac --phase=copy && tauri build` },
 };

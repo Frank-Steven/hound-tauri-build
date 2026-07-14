@@ -1,13 +1,11 @@
-/**
- * @file build:android 任务
- * @description 构建 Android APK/AAB。
- * @module scripts/build/tasks/build-android
- */
+const path = require('path');
+const GEN_DIR = path.join(__dirname, '..');
+const GEN_CMD = `node "${path.join(GEN_DIR, 'gen-icons.cjs')}"`;
 
 module.exports = {
   id: 'build:android',
   description: 'build android',
-  dependsOn: ['android:signing', 'icon:copy:android', 'icon:copy:common'],
+  dependsOn: ['icon:generate:android', 'android:signing'],
   conflicts: ['resource:cargo-build'],
-  run: { cmd: 'tauri android build' },
+  run: { cmd: `${GEN_CMD} android --phase=copy && tauri android build` },
 };

@@ -9,11 +9,6 @@ module.exports = {
   description: 'build all',
   dependsOn: [
     'build:desktop',
-    'build:win',
-    'build:mac',
-    'build:mac-universal',
-    'build:linux',
-    'build:android',
-    'build:ios',
+    'build:mobile',
   ],
 };

@@ -49,8 +49,11 @@ function generateDesktopGenerate(platform) {
   const cmd = `yarn tauri icon "${source}" --output "${tempDir}"`;
   console.log('$', cmd);
   try {
-    execSync(cmd, { cwd: rootDir, stdio: 'inherit' });
+    const out = execSync(cmd, { cwd: rootDir, encoding: 'utf8' });
+    if (out.trim()) console.log(out.trimEnd());
   } catch (e) {
+    if (e.stdout && e.stdout.trim()) console.log(e.stdout.trimEnd());
+    if (e.stderr && e.stderr.trim()) console.log(e.stderr.trimEnd());
     fs.rmSync(tempDir, { recursive: true, force: true });
     return false;
   }
@@ -139,8 +142,11 @@ function generateMobileGenerate(platform) {
   const cmd = `yarn tauri icon "${source}" --output "${tempDir}"`;
   console.log('$', cmd);
   try {
-    execSync(cmd, { cwd: rootDir, stdio: 'inherit' });
+    const out = execSync(cmd, { cwd: rootDir, encoding: 'utf8' });
+    if (out.trim()) console.log(out.trimEnd());
   } catch (e) {
+    if (e.stdout && e.stdout.trim()) console.log(e.stdout.trimEnd());
+    if (e.stderr && e.stderr.trim()) console.log(e.stderr.trimEnd());
     fs.rmSync(tempDir, { recursive: true, force: true });
     return false;
   }
@@ -207,7 +213,7 @@ function generateMobileCopy(platform) {
 }
 
 /** 桌面端平台列表 */
-const DESKTOP_PLATFORMS = ['desktop', 'mac', 'win', 'linux', 'common'];
+const DESKTOP_PLATFORMS = ['desktop', 'mac', 'win', 'linux'];
 
 /**
  * 按阶段分派图标的生成

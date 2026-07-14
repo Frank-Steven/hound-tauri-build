@@ -1,13 +1,11 @@
-/**
- * @file build:mac-universal 任务
- * @description 构建 macOS Universal Binary（x86_64 + arm64）。
- * @module scripts/build/tasks/build-mac-universal
- */
+const path = require('path');
+const GEN_DIR = path.join(__dirname, '..');
+const GEN_CMD = `node "${path.join(GEN_DIR, 'gen-icons.cjs')}"`;
 
 module.exports = {
   id: 'build:mac-universal',
   description: 'build mac uni',
-  dependsOn: ['icon:copy:mac'],
+  dependsOn: ['icon:generate:mac'],
   conflicts: ['resource:cargo-build'],
-  run: { cmd: 'tauri build --target universal-apple-darwin' },
+  run: { cmd: `${GEN_CMD} mac --phase=copy && tauri build --target universal-apple-darwin` },
 };
