@@ -8,5 +8,6 @@ module.exports = {
   id: 'test',
   description: 'test',
   dependsOn: [],
+  conflicts: ['resource:cargo-build'],
   run: { cmd: 'yarn test' },
 };

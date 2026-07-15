@@ -4,7 +4,7 @@
  * @module scripts/build
  */
 
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
 const path = require('path');
 const net = require('net');
 const { runCmdInherit, loadTaskRegistry, resolveTaskGraph, executeTasks, ROOT_DIR } = require('./task-runner.cjs');
@@ -17,19 +17,11 @@ const TUI_PATH = path.join(__dirname, 'tui-app', 'index.mjs');
 
 const ALL_PLATFORMS = ['desktop', 'mac', 'win', 'linux', 'android', 'ios', 'desktop-platforms', 'mobile', 'all'];
 const ICON_PLATFORMS = ['desktop', 'mac', 'win', 'linux', 'android', 'ios'];
-/**
- * 图标命令只需指定 copy 任务（generate 通过依赖自动触发）
- */
-const ALL_ICON_TASKS = ICON_PLATFORMS.map((p) => 'icon:copy:' + p);
 
 /**
  * 给定命令和平台，返回需要解析执行的目标任务 ID 列表
  */
 const COMMAND_TASKS = {
-  icon: Object.fromEntries([
-    ...ICON_PLATFORMS.map((p) => [p, ['icon:copy:' + p]]),
-    ['all', ALL_ICON_TASKS],
-  ]),
   build: {
     desktop: ['build:desktop'],
     mac: ['build:mac'],
@@ -58,23 +50,23 @@ const COMMAND_TASKS = {
 
 /** dev 命令在依赖任务完成后还需要 spawn tauri dev */
 const DEV_SETUP_TASKS = {
-  desktop: ['deps', 'icon:generate:desktop'],
-  mac: ['deps', 'icon:generate:mac'],
-  win: ['deps', 'icon:generate:win'],
-  linux: ['deps', 'icon:generate:linux'],
-  android: ['deps', 'android:init', 'icon:generate:android'],
-  ios: ['deps', 'icon:generate:ios'],
+  desktop: ['icon:desktop'],
+  mac: ['icon:mac'],
+  win: ['icon:win'],
+  linux: ['icon:linux'],
+  android: ['icon:android'],
+  ios: ['icon:ios'],
 };
 
 /** dev 命令的长运行进程 */
-const GEN = `node "${path.join(__dirname, 'gen-icons.cjs')}"`;
+const CP = `node "${path.join(__dirname, 'gen-icons.cjs')}"`;
 const DEV_CMD = {
-  desktop: `${GEN} desktop --phase=copy && tauri dev`,
-  mac: `${GEN} mac --phase=copy && tauri dev`,
-  win: `${GEN} win --phase=copy && tauri dev`,
-  linux: `${GEN} linux --phase=copy && tauri dev`,
-  android: `${GEN} android --phase=copy && tauri android dev`,
-  ios: `${GEN} ios --phase=copy && tauri ios dev`,
+  desktop: `${CP} desktop --phase=copy && tauri dev`,
+  mac: `${CP} mac --phase=copy && tauri dev`,
+  win: `${CP} win --phase=copy && tauri dev`,
+  linux: `${CP} linux --phase=copy && tauri dev`,
+  android: `${CP} android --phase=copy && tauri android dev`,
+  ios: `${CP} ios --phase=copy && tauri ios dev`,
 };
 
 /** build-quick 命令的构建命令 */
@@ -377,14 +369,15 @@ async function main() {
 
   // ---- icon ----
   if (command === 'icon') {
-    const mapping = COMMAND_TASKS.icon[platform];
-    if (!mapping) {
+    if (platform === 'all') {
+      execSync(`${CP} all`, { cwd: ROOT_DIR, stdio: 'inherit' });
+    } else if (ICON_PLATFORMS.includes(platform)) {
+      execSync(`${CP} ${platform}`, { cwd: ROOT_DIR, stdio: 'inherit' });
+    } else {
       console.error('Unknown icon platform:', platform);
-      console.error('Available:', Object.keys(COMMAND_TASKS.icon).join(', '));
+      console.error('Available:', ICON_PLATFORMS.join(', ') + ', all');
       process.exit(1);
     }
-    const ok = await runWithTuiOrFallback(mapping);
-    process.exit(ok ? 0 : 1);
     return;
   }
 

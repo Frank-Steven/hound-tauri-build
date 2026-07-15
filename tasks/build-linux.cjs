@@ -1,11 +1,10 @@
 const path = require('path');
-const GEN_DIR = path.join(__dirname, '..');
-const GEN_CMD = `node "${path.join(GEN_DIR, 'gen-icons.cjs')}"`;
+const CP = `node "${path.join(__dirname, '..', 'gen-icons.cjs')}"`;
 
 module.exports = {
   id: 'build:linux',
   description: 'build linux',
-  dependsOn: ['icon:generate:linux'],
+  dependsOn: ['icon:linux'],
   conflicts: ['resource:cargo-build'],
-  run: { cmd: `${GEN_CMD} linux --phase=copy && tauri build` },
+  run: { cmd: `${CP} linux --phase=copy && tauri build --target x86_64-unknown-linux-gnu` },
 };

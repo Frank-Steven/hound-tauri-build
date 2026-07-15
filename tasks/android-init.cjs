@@ -9,5 +9,5 @@ module.exports = {
   description: 'android init',
   dependsOn: [],
   conflicts: ['resource:tauri-cli'],
-  run: { cmd: 'yarn init:android' },
+  run: { cmd: 'node -e "require(\'fs\').rmSync(\'src-tauri/gen/android\',{recursive:true,force:true})" && yarn init:android' },
 };

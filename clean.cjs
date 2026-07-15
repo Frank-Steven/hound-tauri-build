@@ -8,7 +8,7 @@ const CLEAN_TARGETS = {
   target: 'src-tauri/target',
   gen: 'src-tauri/gen',
   icons: 'src-tauri/icons',
-  temp: 'temp-icon-gen',
+  temp: 'icons/temp',
 }
 
 const ALL_SAFE = ['target', 'gen', 'icons', 'temp']
