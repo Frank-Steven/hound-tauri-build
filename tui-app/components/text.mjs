@@ -13,7 +13,17 @@ function truncateText(text, maxVisual) {
     if (text[i] === '\x1b') {
       const escStart = i;
       i++;
-      if ('[]P_^'.includes(text[i])) i++;
+      // OSC 序列: ESC ] ... (BEL 或 ST 终止)
+      if (text[i] === ']') {
+        i++;
+        while (i < text.length && text[i] !== '\x07') {
+          if (text[i] === '\x1b' && i + 1 < text.length && text[i + 1] === '\\') { i += 2; break; }
+          i++;
+        }
+        if (i < text.length && text[i] === '\x07') i++;
+        continue;
+      }
+      if ('[P_^'.includes(text[i])) i++;
       while (i < text.length && (text[i] < '\x40' || text[i] > '\x7e')) i++;
       if (i < text.length) i++;
       if (text.slice(escStart, i).match(/\x1b\[[\d;]*m/)) hasSGR = true;

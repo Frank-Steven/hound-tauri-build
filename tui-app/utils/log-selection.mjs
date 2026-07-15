@@ -19,7 +19,18 @@ function highlightRange(line, colS, colE) {
     if (ch === '\x1b') {
       let seq = ch;
       i++;
-      if (i < line.length && '[]P_^'.includes(line[i])) { seq += line[i]; i++; }
+      // OSC 序列: ESC ] ... (BEL 或 ST 终止)
+      if (i < line.length && line[i] === ']') {
+        seq += line[i]; i++;
+        while (i < line.length && line[i] !== '\x07') {
+          if (line[i] === '\x1b' && i + 1 < line.length && line[i + 1] === '\\') { seq += line.slice(i, i + 2); i += 2; break; }
+          seq += line[i]; i++;
+        }
+        if (i < line.length && line[i] === '\x07') { seq += line[i]; i++; }
+        out += seq;
+        continue;
+      }
+      if (i < line.length && '[P_^'.includes(line[i])) { seq += line[i]; i++; }
       while (i < line.length && (line[i] < '\x40' || line[i] > '\x7e')) { seq += line[i]; i++; }
       if (i < line.length) { seq += line[i]; i++; }
       out += seq;

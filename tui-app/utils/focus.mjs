@@ -86,7 +86,18 @@ function highlightRange(line, colStart, colEnd) {
     if (line[i] === '\x1b') {
       const start = i;
       i++;
-      if (i < line.length && '[]P_^'.includes(line[i])) i++;
+      // OSC 序列: ESC ] ... (BEL 或 ST 终止), 零宽度
+      if (i < line.length && line[i] === ']') {
+        i++;
+        while (i < line.length && line[i] !== '\x07') {
+          if (line[i] === '\x1b' && i + 1 < line.length && line[i + 1] === '\\') { i += 2; break; }
+          i++;
+        }
+        if (i < line.length && line[i] === '\x07') i++;
+        if (!started) result += line.slice(start, i);
+        continue;
+      }
+      if (i < line.length && '[P_^'.includes(line[i])) i++;
       while (i < line.length && (line[i] < '\x40' || line[i] > '\x7e')) i++;
       if (i < line.length) i++;
       // 范围外保留，范围内剥离
@@ -181,7 +192,17 @@ function findCheckboxes(line) {
     }
     if (line[i] === '\x1b') {
       i++;
-      if ('[]P_^'.includes(line[i])) i++;
+      // OSC 序列: ESC ] ... (BEL 或 ST 终止)
+      if (line[i] === ']') {
+        i++;
+        while (i < line.length && line[i] !== '\x07') {
+          if (line[i] === '\x1b' && i + 1 < line.length && line[i + 1] === '\\') { i += 2; break; }
+          i++;
+        }
+        if (i < line.length && line[i] === '\x07') i++;
+        continue;
+      }
+      if ('[P_^'.includes(line[i])) i++;
       while (i < line.length && (line[i] < '\x40' || line[i] > '\x7e')) i++;
       if (i < line.length) i++;
       continue;

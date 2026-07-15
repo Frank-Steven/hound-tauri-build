@@ -24,7 +24,17 @@ function visToCharIdx(line, visX) {
   while (charIdx < line.length && visW < visX) {
     if (line[charIdx] === '\x1b') {
       charIdx++;
-      if ('[]P_^'.includes(line[charIdx])) charIdx++;
+      // OSC 序列: ESC ] ... (BEL 或 ST 终止)
+      if (line[charIdx] === ']') {
+        charIdx++;
+        while (charIdx < line.length && line[charIdx] !== '\x07') {
+          if (line[charIdx] === '\x1b' && charIdx + 1 < line.length && line[charIdx + 1] === '\\') { charIdx += 2; break; }
+          charIdx++;
+        }
+        if (charIdx < line.length && line[charIdx] === '\x07') charIdx++;
+        continue;
+      }
+      if ('[P_^'.includes(line[charIdx])) charIdx++;
       while (charIdx < line.length && (line[charIdx] < '\x40' || line[charIdx] > '\x7e')) charIdx++;
       if (charIdx < line.length) charIdx++;
       continue;

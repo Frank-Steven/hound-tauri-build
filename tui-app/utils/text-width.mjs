@@ -19,7 +19,17 @@ export function textWidth(text) {
     // ESC 序列
     if (text[i] === '\x1b') {
       i++;
-      if ('[]P_^'.includes(text[i])) i++;
+      // OSC 序列: ESC ] ... (BEL 或 ST 终止), 零宽度
+      if (text[i] === ']') {
+        i++;
+        while (i < text.length && text[i] !== '\x07') {
+          if (text[i] === '\x1b' && i + 1 < text.length && text[i + 1] === '\\') { i += 2; break; }
+          i++;
+        }
+        if (i < text.length && text[i] === '\x07') i++;
+        continue;
+      }
+      if ('[P_^'.includes(text[i])) i++;
       while (i < text.length && (text[i] < '\x40' || text[i] > '\x7e')) i++;
       if (i < text.length) i++;
       continue;
@@ -44,7 +54,18 @@ export function visSlice(str, startCol, endCol) {
     if (str[i] === '\x1b') {
       const start = i;
       i++;
-      if (i < n && '[]P_^'.includes(str[i])) i++;
+      // OSC 序列: ESC ] ... (BEL 或 ST 终止), 零宽度
+      if (i < n && str[i] === ']') {
+        i++;
+        while (i < n && str[i] !== '\x07') {
+          if (str[i] === '\x1b' && i + 1 < n && str[i + 1] === '\\') { i += 2; break; }
+          i++;
+        }
+        if (i < n && str[i] === '\x07') i++;
+        if (visCol >= startCol && visCol < endCol) result += str.slice(start, i);
+        continue;
+      }
+      if (i < n && '[P_^'.includes(str[i])) i++;
       while (i < n && (str[i] < '\x40' || str[i] > '\x7e')) i++;
       if (i < n) i++;
       if (visCol >= startCol && visCol < endCol) result += str.slice(start, i);

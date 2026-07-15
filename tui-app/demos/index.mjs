@@ -371,11 +371,7 @@ export function makePage() {
 
   // footer — 筛选行（焦点高亮内建于 filterRow，仅键盘交互时显示）
   const footerLayout = filterRow.render(W, focusState.focus === 'footer' && focusState.focusVisible && !exitPanel.visible);
-  let footerLine = footerLayout.line;
-  if (!running.val) {
-    const exitLabel = text('Press Enter to exit', { dim: true });
-    footerLine = footerLine.slice(0, W - 19) + exitLabel;
-  }
+  const footerLine = footerLayout.line;
 
   // 组装输出
   const output = [header, ...treePanel, ...logPanel, footerLine];

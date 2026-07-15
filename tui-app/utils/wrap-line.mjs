@@ -39,7 +39,18 @@ ANSI/CSI/OSC/BEL/ST/DCS/PM/APC控制符等，
     if (text[i] === '\x1b') {
       const start = i;
       i++;
-      if ('[]P_^'.includes(text[i])) i++;
+      // OSC 序列: ESC ] ... (BEL 或 ST 终止), 零宽度，直通输出
+      if (text[i] === ']') {
+        i++;
+        while (i < text.length && text[i] !== '\x07') {
+          if (text[i] === '\x1b' && i + 1 < text.length && text[i + 1] === '\\') { i += 2; break; }
+          i++;
+        }
+        if (i < text.length && text[i] === '\x07') i++; // consume BEL
+        cur += text.slice(start, i);
+        continue;
+      }
+      if ('[P_^'.includes(text[i])) i++;
       while (i < text.length && (text[i] < '\x40' || text[i] > '\x7e')) i++;
       if (i < text.length) i++;
       const seq = text.slice(start, i);
