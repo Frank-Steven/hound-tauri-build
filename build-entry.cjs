@@ -34,6 +34,15 @@ const COMMAND_TASKS = {
     mobile: ['build:mobile'],
     all: ['build:all'],
   },
+  'build-quick': {
+    desktop: ['build-quick:desktop'],
+    mac: ['build-quick:mac'],
+    'mac-universal': ['build-quick:mac-universal'],
+    win: ['build-quick:win'],
+    linux: ['build-quick:linux'],
+    android: ['build-quick:android'],
+    ios: ['build-quick:ios'],
+  },
   ship: {
     desktop: ['test', 'build:desktop'],
     mac: ['test', 'build:mac'],
@@ -67,17 +76,6 @@ const DEV_CMD = {
   linux: `${CP} linux --phase=copy && tauri dev`,
   android: `${CP} android --phase=copy && tauri android dev`,
   ios: `${CP} ios --phase=copy && tauri ios dev`,
-};
-
-/** build-quick 命令的构建命令 */
-const BUILD_QUICK_CMD = {
-  desktop: 'tauri build',
-  mac: 'tauri build --bundles dmg app',
-  'mac-universal': 'tauri build --target universal-apple-darwin',
-  win: 'tauri build --bundles nsis msi',
-  linux: 'tauri build --bundles deb appimage rpm',
-  android: 'tauri android build',
-  ios: 'tauri ios build',
 };
 
 // ============================================================
@@ -257,7 +255,40 @@ function createCollector(target) {
  * @param {{ tasks, statuses, allLogs, exitOk }} summary
  */
 function printSummary(summary) {
-  // 纯后端模式：不处理前端输出，TUI 前端负责所有渲染
+  const { tasks, statuses, exitOk } = summary;
+  if (!tasks.length) return;
+
+  const counts = { done: 0, failed: 0, skipped: 0 };
+  for (const t of tasks) {
+    const s = statuses[t.id]?.status;
+    if (counts[s] !== undefined) counts[s]++;
+  }
+
+  console.log();
+  console.log('─'.repeat(50));
+
+  // 总体结果
+  const ok = exitOk && counts.failed === 0;
+  console.log(ok ? '  Result  PASS' : '  Result  FAIL');
+
+  // 汇总统计
+  const parts = [];
+  if (counts.done) parts.push(`${counts.done} passed`);
+  if (counts.failed) parts.push(`${counts.failed} failed`);
+  if (counts.skipped) parts.push(`${counts.skipped} skipped`);
+  console.log(`  Tasks   ${tasks.length} total, ${parts.join(', ')}`);
+
+  // 每个任务状态
+  console.log('─'.repeat(50));
+  for (const t of tasks) {
+    const s = statuses[t.id];
+    const icon = { done: '\x1b[32m✓\x1b[0m', failed: '\x1b[31m✗\x1b[0m', skipped: '\x1b[33m○\x1b[0m', running: '…', pending: '…' }[s?.status] || ' ';
+    const elapsed = s?.elapsed != null ? ` (${s.elapsed}ms)` : '';
+    console.log(`  ${icon}  ${t.description || t.id}${elapsed}`);
+  }
+
+  console.log('─'.repeat(50));
+  console.log();
 }
 
 // ============================================================
@@ -369,15 +400,18 @@ async function main() {
 
   // ---- icon ----
   if (command === 'icon') {
+    let targetIds;
     if (platform === 'all') {
-      execSync(`${CP} all`, { cwd: ROOT_DIR, stdio: 'inherit' });
+      targetIds = ICON_PLATFORMS.map(p => `icon:${p}`);
     } else if (ICON_PLATFORMS.includes(platform)) {
-      execSync(`${CP} ${platform}`, { cwd: ROOT_DIR, stdio: 'inherit' });
+      targetIds = [`icon:${platform}`];
     } else {
       console.error('Unknown icon platform:', platform);
       console.error('Available:', ICON_PLATFORMS.join(', ') + ', all');
       process.exit(1);
     }
+    const ok = await runWithTuiOrFallback(targetIds);
+    process.exit(ok ? 0 : 1);
     return;
   }
 
@@ -397,21 +431,8 @@ async function main() {
     return;
   }
 
-  // ---- build-quick ----
-  if (command === 'build-quick') {
-    const cmd = BUILD_QUICK_CMD[platform];
-    if (!cmd) {
-      console.error('Unknown platform:', platform);
-      console.error('Available:', Object.keys(BUILD_QUICK_CMD).join(', '));
-      process.exit(1);
-    }
-    const ok = await runCmdInherit(cmd);
-    process.exit(ok ? 0 : 1);
-    return;
-  }
-
-  // ---- build / ship ----
-  if (command === 'build' || command === 'ship') {
+  // ---- build / build-quick / ship ----
+  if (command === 'build' || command === 'build-quick' || command === 'ship') {
     const mapping = COMMAND_TASKS[command][platform];
     if (!mapping) {
       console.error('Unknown platform:', platform);

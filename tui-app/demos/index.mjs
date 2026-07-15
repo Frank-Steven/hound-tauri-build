@@ -11,6 +11,7 @@ import { applyFilter } from '../utils/filter.mjs';
 import { taskDot } from '../utils/colors.mjs';
 import { flexTwo } from '../utils/flex2.mjs';
 import { wrapLine } from '../utils/wrap-line.mjs';
+import { wrapUrls } from '../utils/wrap-urls.mjs';
 import { textWidth, visSlice } from '../utils/text-width.mjs';
 import { getTerminalSize } from '../utils/terminal-size.mjs';
 import { initFocus, focusState, clampCursors, highlightLine, applyLogSelection, highlightSlot, getTreeSlots, logSel } from '../utils/focus.mjs';
@@ -133,7 +134,7 @@ const filterRow = createFilterRow(filterState, () => _onUpdate?.());
 // ── 右键复制：从选中区域提取纯文本 ───────────────────
 
 function stripAnsi(str) {
-  return str.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').replace(/\x1b\][^\x07]*\x07/g, '');
+  return str.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '').replace(/\x1b\][^\x07]*\x07/g, '').replace(/\x1b\].*?\x1b\\/g, '');
 }
 
 function extractSelectedText(sel, logLines, lineToEntry) {
@@ -234,7 +235,7 @@ export function makePage() {
   const H = Math.max(3, rows);
 
   // ── 终端尺寸过小提示 ────────────────────────────
-  const MIN_COL = 60;
+  const MIN_COL = 70;
   const MIN_ROW = 16;
   if (W < MIN_COL || H < MIN_ROW) {
     const out = Array(H).fill(' '.repeat(W));
@@ -297,7 +298,7 @@ export function makePage() {
   const logInnerW = Math.max(3, W - 2);
   const textW = logInnerW - 2;
 
-  const rawWrapped = filtered.map((e) => wrapLine(e.text, textW));
+  const rawWrapped = filtered.map((e) => wrapLine(wrapUrls(e.text), textW));
   const lineToEntry = [];
   const wrappedEntries = filtered.map((e, eIdx) => {
     const lines = rawWrapped[eIdx];

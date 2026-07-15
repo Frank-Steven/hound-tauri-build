@@ -2,6 +2,8 @@
 
 export function charWidth(c) {
   const code = c.codePointAt(0);
+  // 控制字符 (0x00-0x1F, 0x7F) 不占显示宽度
+  if (code < 0x20 || code === 0x7F) return 0;
   if (code >= 0x1100 && code <= 0x115F) return 2;
   if (code >= 0x2E80 && code <= 0xA4CF) return 2;
   if (code >= 0xAC00 && code <= 0xD7AF) return 2;

@@ -27,7 +27,7 @@ export function statusBar({ minIndex, maxIndex, total, cursorLine }) {
 export function buildStatusBar(stats, totalElapsed) {
   let label;
   if (stats.finished) {
-    label = '[Finished]';
+    label = '[Finished (Press ESC or Ctrl+C to exit)]';
   } else if (totalElapsed > 0) {
     label = `[Building ${fmtTime(totalElapsed)}]`;
   } else {

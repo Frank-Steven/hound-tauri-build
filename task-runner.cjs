@@ -413,7 +413,8 @@ function runCmdSilent(cmd, cb, abort) {
       const lines = buf.split('\n');
       buf = lines.pop();
       for (const l of lines) {
-        if (l.trim()) cb.onLog(l);
+        const clean = l.replace(/\r$/, '');
+        if (clean.trim()) cb.onLog(clean);
       }
     };
 
@@ -421,7 +422,7 @@ function runCmdSilent(cmd, cb, abort) {
     child.stderr.on('data', onData);
 
     child.on('close', (code) => {
-      if (buf.trim()) cb.onLog(buf.trimEnd());
+      if (buf.trim()) cb.onLog(buf.replace(/\r$/, '').trimEnd());
       resolve(code === 0);
     });
     child.on('error', () => resolve(false));

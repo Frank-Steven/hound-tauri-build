@@ -16,6 +16,7 @@ ANSI/CSI/OSC/BEL/ST/DCS/PM/APC控制符等，
   let curW = 0;
   let i = 0;
   let sgr = '';
+  let oscUrl = null;  // 当前活跃的 OSC 8 超链接 URL，null 表示不在超链接内
 
   function pad() {
     const need = width - curW;
@@ -24,10 +25,12 @@ ANSI/CSI/OSC/BEL/ST/DCS/PM/APC控制符等，
   }
 
   function breakLine() {
+    if (oscUrl) cur += '\x1b]8;;\x07';  // 行尾关闭超链接
     if (sgr) cur += '\x1b[0m';
     pad();
     lines.push(cur);
     cur = sgr;
+    if (oscUrl) cur += '\x1b]8;;' + oscUrl + '\x07';  // 下行开头重新打开超链接
     curW = 0;
   }
 
@@ -47,7 +50,13 @@ ANSI/CSI/OSC/BEL/ST/DCS/PM/APC控制符等，
           i++;
         }
         if (i < text.length && text[i] === '\x07') i++; // consume BEL
-        cur += text.slice(start, i);
+        const seq = text.slice(start, i);
+        // 解析 OSC 8 超链接：\x1b]8;[params;]url\x07
+        const m = seq.match(/^\x1b\]8;[^;\x07]*;([^\x07]*)\x07$/);
+        if (m) {
+          oscUrl = m[1] || null;  // 空 URL 表示关闭超链接
+        }
+        cur += seq;
         continue;
       }
       if ('[P_^'.includes(text[i])) i++;
@@ -76,6 +85,7 @@ ANSI/CSI/OSC/BEL/ST/DCS/PM/APC控制符等，
   }
 
   if (cur.length > 0) {
+    if (oscUrl) cur += '\x1b]8;;\x07';  // 收尾关闭未闭合的超链接
     pad();
     lines.push(cur);
   }

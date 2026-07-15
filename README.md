@@ -1,208 +1,217 @@
-# hound-tauri-build
+# Hound Tauri Build
 
-基于 **TaskDAG + ConflictSet** 架构的声明式 Tauri 构建工具。支持多平台构建、图标生成、清理操作，并提供 TUI（终端 UI）模式。
+> 面向 Tauri v2 的声明式构建辅助工具 —— 任务编排、并行调度、TUI 可视化，一套搞定。
+
+[![npm version](https://img.shields.io/npm/v/hound-tauri-build)](https://www.npmjs.com/package/hound-tauri-build)
+[![license](https://img.shields.io/npm/l/hound-tauri-build)](https://github.com/Frank-Steven/hound-tauri-build/blob/main/LICENSE)
+[![node](https://img.shields.io/node/v/hound-tauri-build)](https://nodejs.org/)
+
+---
+
+## 特性
+
+- **声明式任务系统** —— 每个任务一个 `.cjs` 文件，声明依赖、冲突资源、执行命令，零模板代码
+- **DAG 并行调度** —— 自动解析依赖图，拓扑排序，最多 4 任务并行，冲突资源自动串行化
+- **自定义 TUI 界面** —— 零依赖终端 UI，实时展示任务树、构建日志、进度统计，支持键盘/鼠标交互
+- **日志过滤与搜索** —— 按日志级别（success/warning/error/info/log）、任务、关键词实时过滤
+- **跨平台构建** —— 支持 Windows / macOS (x86_64 + Universal) / Linux / Android / iOS
+- **图标自动化** —— 两阶段生成（生成 + 复制），带缓存，支持按平台指定不同图标源
+- **智能回退** —— TUI 启动失败或非 TTY 环境自动降级为内联串行模式
+- **可编程 API** —— 支持以 npm 包形式引入，在你的脚本中调用核心引擎
 
 ## 安装
 
-推荐使用 **yarn**，也可直接使用 `npm`：
-
 ```bash
-# 推荐
-yarn add --dev hound-tauri-build
-
-# 或
-npm install --save-dev hound-tauri-build
+npm install -D hound-tauri-build
 ```
 
-需要 peer 依赖：
+**前置要求：**
+- Node.js >= 18
+- `@tauri-apps/cli` ^2.0.0（peer dependency）
+- Rust / Android SDK / Xcode 等对应平台的 Tauri 构建依赖
 
-```bash
-yarn add --dev @tauri-apps/cli@^2
-# 或 npm install --save-dev @tauri-apps/cli@^2
-```
+## 快速开始
 
-`ink` 和 `react` 为可选项，用于 TUI 模式。
-
-## 使用
-
-### CLI 命令
-
-```bash
-# 构建（默认 desktop）
-yarn hound-tauri-build build [platform]
-
-# 开发模式
-yarn hound-tauri-build dev [platform]
-
-# 快速构建（跳过依赖安装和图标生成）
-yarn hound-tauri-build build-quick [platform]
-
-# 测试 + 构建
-yarn hound-tauri-build ship [platform]
-
-# 生成图标
-yarn hound-tauri-build icon [platform|all]
-
-# 禁用 TUI，使用内联输出（可加在任意位置）
-yarn hound-tauri-build build desktop --no-tui
-
-# 清理构建产物
-yarn hound-tauri-clean [target|all]
-
-# 图标生成独立命令
-yarn hound-tauri-icon [platform|all]
-```
-
-### 平台
-
-| 平台 | 说明 |
-|---|---|
-| `desktop` | 桌面端（默认） |
-| `mac` | macOS |
-| `win` | Windows |
-| `linux` | Linux |
-| `mac-universal` | macOS Universal |
-| `android` | Android |
-| `ios` | iOS |
-| `desktop-platforms` | 所有桌面平台 |
-| `mobile` | 所有移动平台 |
-| `all` | 所有平台 |
-
-### 项目结构要求
-
-工具期望目标项目为一个标准 Tauri 项目，并在项目根目录下放置平台图标源文件：
+在你的 Tauri 项目中安装后，准备好图标源文件：
 
 ```
 your-tauri-project/
-├── src-tauri/               # Tauri 后端（必须）
-│   ├── target/              # Rust 构建产物
-│   ├── gen/                 # 移动端生成文件
-│   └── icons/               # 图标生成输出（由工具管理）
-├── icons/                   # 图标源文件（需自行准备）
-│   ├── icon.png             # 通用图标源（必选）
-│   ├── icon-desktop.png     # 桌面专用源（可选）
-│   ├── icon-mac.png         # macOS 专用源（可选）
-│   ├── icon-win.png         # Windows 专用源（可选）
-│   ├── icon-linux.png       # Linux 专用源（可选）
-│   ├── icon-android.png     # Android 专用源（可选）
-│   └── icon-ios.png         # iOS 专用源（可选）
-├── keys/                    # 密钥源（Android 打包）
-│   ├── keystore.properties  # Android 密钥配置文件（可选）
-│   └── MyKeystore.jks       # Android 密钥文件
-│                            # 需在 `keystore.properties` 中
-│                            # 配置绝对路径（可选）
-├── package.json
-└── ...
+├── icons/                     # 图标源文件目录
+│   ├── icon.png               # 默认图标（兜底）
+│   ├── icon-desktop.png       # 桌面端通用图标（可选）
+│   ├── icon-win.png           # Windows 专属图标（可选）
+│   ├── icon-mac.png           # macOS 专属图标（可选）
+│   ├── icon-linux.png         # Linux 专属图标（可选）
+│   ├── icon-android.png       # Android 专属图标（可选）
+│   └── icon-ios.png           # iOS 专属图标（可选）
+├── src-tauri/
+└── package.json
 ```
 
-图标生成时按平台优先级查找源文件（如 macOS 优先用 `icon-mac.png` → `icon-desktop.png` → `icon.png`），生成对应平台所需的多尺寸图标到 `src-tauri/icons/`。
+然后在 `package.json` 中添加脚本（可选）：
 
-### 平台图标配置
+```json
+{
+  "scripts": {
+    "dev": "htb dev desktop",
+    "build": "htb build desktop",
+    "build:win": "htb build win",
+    "build:mac": "htb build mac",
+    "build:all": "htb build all",
+    "ship": "htb ship desktop",
+    "icon": "htb icon desktop",
+    "clean": "htb-clean all"
+  }
+}
+```
 
-工具内置了 [icon-config.json](https://github.com/frankssteven/hound-whiteboard/blob/main/build/icon-config.json) 定义各平台的图标生成规则，包含：
+## CLI 命令
 
-- **source** — 源文件候选列表（按优先级）
-- **output** — 生成图标输出目录
-- **filesToKeep** — 保留的文件列表（桌面平台）
-- **needsInit** — 是否需要先初始化平台（Android / iOS）
-
-如需自定义输出文件列表或路径，可在项目根目录放置自己的 `icon-config.json` 覆盖默认配置。
-
-### 清理目标
+### 构建相关
 
 ```bash
-yarn hound-tauri-clean target     # 清理 Rust 构建产物 (src-tauri/target)
-yarn hound-tauri-clean gen        # 清理移动端生成文件 (src-tauri/gen)
-yarn hound-tauri-clean icons      # 清理图标文件 (src-tauri/icons)
-yarn hound-tauri-clean temp       # 清理临时图标生成目录
-yarn hound-tauri-clean all        # 清理以上全部
-yarn hound-tauri-clean status     # 查看当前图标来源状态
+# 完整构建（含图标生成）
+htb build <platform>
+htb ship <platform>       # 先跑测试，再构建
+
+# 快速构建（跳过图标和依赖任务）
+htb build-quick <platform>
+
+# 开发模式（生成图标后启动 tauri dev）
+htb dev <platform>
 ```
 
-### 编程 API
+### 辅助工具
 
-```javascript
-const { loadTaskRegistry, resolveTaskGraph, executeTasks, run } = require('hound-tauri-build');
+```bash
+# 图标生成
+htb icon <platform>       # 单个平台
+htb icon all              # 全部平台
 
-// 加载任务注册表
-const registry = loadTaskRegistry();
+# 清理
+htb-clean <target>              # 清理指定目标
+htb-clean all                   # 清理全部
+htb-clean status                # 查看当前图标源状态
 
-// 解析依赖图
-const { ordered, errors } = resolveTaskGraph(['build:desktop'], registry);
-
-// 执行任务
-const ok = await executeTasks(ordered, 'inline');
-
-// 或一步到位
-const result = await run(['build:desktop'], 'inline');
-const { ok, errors } = result;
+# 图标工具（独立使用）
+htb-icon <platform>
+htb-icon all
 ```
 
-## 架构
+### 支持的平台
 
-### TaskDAG
+| 平台 | 值 | 说明 |
+|------|-----|------|
+| 桌面端（聚合） | `desktop` | win + mac + mac-universal + linux |
+| Windows | `win` | NSIS / MSI 安装包 |
+| macOS Intel | `mac` | x86_64-apple-darwin |
+| macOS Universal | `mac-universal` | universal-apple-darwin |
+| Linux | `linux` | deb / AppImage / rpm |
+| Android | `android` | APK / AAB |
+| iOS | `ios` | IPA |
+| 移动端（聚合） | `mobile` | android + ios |
+| 全平台 | `all` | desktop + mobile |
 
-有向无环图（DAG）任务调度引擎：
+### 选项
 
-- 依赖收集：BFS 遍历任务依赖，自动收集传递依赖
-- 冲突管理：ConflictSet 处理共享资源互斥（如并发构建）
-- 拓扑排序：Kahn 算法，支持线性链折叠显示
-- 并行执行：在 TUI 模式下最多 4 个任务并行，依赖就绪 + 无冲突锁即可执行
+| 选项 | 说明 |
+|------|------|
+| `--no-tui` | 禁用 TUI，直接用终端文本输出 |
 
-### 任务定义
+## 声明式任务系统
 
-任务存放在 `tasks/` 目录下，每个 .cjs 文件导出一个任务对象：
+项目自带一套开箱即用的任务定义（位于 `tasks/` 目录），但你也可以**扩展自定义任务**。
 
-```javascript
+### 内置任务依赖图
+
+```
+ship:*     → test → build:*
+build:win  → icon:win
+build:mac  → icon:mac
+build:linux → icon:linux
+build:android → icon:android → android:init
+build:ios  → icon:ios → ios:init
+
+冲突资源：
+  resource:cargo-build   — 防止多个 Rust 编译任务并行
+  resource:tauri-cli     — 防止多个 Tauri CLI 任务并行
+```
+
+### 编写自定义任务
+
+在 `tasks/` 目录下新建 `my-task.cjs`：
+
+```js
 module.exports = {
-  id: 'build:desktop',
-  description: 'Build desktop app',
-  dependsOn: ['deps', 'icon:copy:desktop'],
-  conflicts: ['cargo'],
-  run: { cmd: 'tauri build' },
+  id: 'my-task',                   // 唯一标识
+  description: '我的自定义任务',     // TUI 中显示的名称
+  dependsOn: ['other-task'],       // 依赖的任务 ID 列表
+  conflicts: ['resource:my-lock'], // 冲突资源名（与同资源任务串行）
+  retry: 3,                        // 失败重试次数（默认 3）
+  run: {
+    cmd: 'echo "Hello Hound!"',    // shell 命令
+  },
 };
 ```
 
-### 执行模式
+也可使用 JavaScript 函数替代 shell 命令：
 
-- **TUI 模式**（TTY + ink）：并行执行，实时状态面板，彩色日志
-- **回退模式**（非 TTY）：串行执行，inherit stdio
-
-## 环境变量
-
-| 变量 | 说明 |
-|---|---|
-| `HOUND_BUILD_ROOT` | 项目根目录，默认当前工作目录 |
-
-## 项目结构
-
-```
-hound-tauri-build/
-├── index.js                # API 入口
-├── build-entry.cjs         # 构建命令入口
-├── task-runner.cjs         # TaskDAG + ConflictSet 核心引擎
-├── clean.cjs               # 清理工具
-├── gen-icons.cjs           # 图标生成工具
-├── icon-config.json        # 图标平台配置
-├── prepare-lib.js          # 发行前准备
-├── bin/
-│   ├── hound-tauri-build.js  # build CLI
-│   ├── hound-tauri-clean.js  # clean CLI
-│   └── hound-tauri-icon.js   # icon CLI
-├── tasks/                  # 任务定义目录
-│   ├── deps.cjs
-│   ├── build-desktop.cjs
-│   ├── build-mac.cjs
-│   ├── build-win.cjs
-│   ├── build-linux.cjs
-│   ├── build-android.cjs
-│   ├── build-ios.cjs
-│   ├── icon-*.cjs
-│   └── ...
-└── tui-app/
-    └── index.mjs           # TUI 应用入口
+```js
+run: {
+  fn: async (log) => {
+    log('开始处理...');
+    // 你的逻辑
+    log('处理完成');
+  },
+}
 ```
 
-## 许可证
+## 可编程 API
 
-GPL-3.0-only
+作为 npm 包引入，在脚本中调用核心引擎：
+
+```js
+const { loadTaskRegistry, resolveTaskGraph, executeTasks, run } = require('hound-tauri-build');
+
+// 快捷方式：加载 → 解析 → 执行
+const ok = await run(['build:win'], 'inline', {
+  onInit(tasks) { /* 任务列表 */ },
+  onStatus(id, status, elapsed) { /* 状态变更 */ },
+  onLog(text, taskId) { /* 构建日志 */ },
+  onExit(ok) { /* 构建完成 */ },
+});
+
+// 分步调用
+const registry = loadTaskRegistry();
+const { ordered, errors } = resolveTaskGraph(['build:win'], registry);
+if (errors.length === 0) {
+  await executeTasks(ordered, 'inline', callbacks);
+}
+```
+
+## 图标配置
+
+图标源文件放在项目根目录的 `icons/` 文件夹。工具按 `icon-config.json` 中的优先级链查找：
+
+```json
+{
+  "platforms": {
+    "win": {
+      "source": ["icon-win.png", "icon-desktop.png", "icon.png"],
+      "output": "src-tauri/icons"
+    },
+    "android": {
+      "source": ["icon-android.png", "icon.png"],
+      "output": "src-tauri/gen/android/app/src/main/res"
+    }
+  }
+}
+```
+
+- `source`：按顺序查找，第一个存在的文件被使用
+- `output`：生成图标的目标目录
+- 支持缓存，重复生成时自动跳过
+
+## License
+
+MIT © Frank Steven

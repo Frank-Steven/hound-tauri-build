@@ -1,13 +1,12 @@
 {
   "name": "hound-tauri-build",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "description": "Hound Tauri 构建系统 - 声明式任务编排与 TUI 构建工具",
   "type": "commonjs",
   "main": "index.js",
   "bin": {
-    "hound-tauri-build": "bin/hound-tauri-build.js",
-    "hound-tauri-clean": "bin/hound-tauri-clean.js",
-    "hound-tauri-icon": "bin/hound-tauri-icon.js"
+    "htb": "bin/hound-tauri-build.js",
+    "htb-clean": "bin/hound-tauri-clean.js"
   },
   "files": [
     "index.js",
