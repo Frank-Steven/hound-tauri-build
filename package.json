@@ -25,13 +25,13 @@
   ],
   "author": "Frank Steven",
   "license": "MIT",
-  "homepage": "https://github.com/Frank-Steven/hound-tauri-build#readme",
+  "homepage": "https://github.com/HoundTek/hound-tauri-build#readme",
   "bugs": {
-    "url": "https://github.com/Frank-Steven/hound-tauri-build/issues"
+    "url": "https://github.com/HoundTek/hound-tauri-build/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Frank-Steven/hound-tauri-build.git"
+    "url": "git+https://github.com/HoundTek/hound-tauri-build.git"
   },
   "peerDependencies": {
     "@tauri-apps/cli": "^2.0.0"

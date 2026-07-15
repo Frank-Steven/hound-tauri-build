@@ -3,7 +3,7 @@
 > 面向 Tauri v2 的声明式构建辅助工具 —— 任务编排、并行调度、TUI 可视化，一套搞定。
 
 [![npm version](https://img.shields.io/npm/v/hound-tauri-build)](https://www.npmjs.com/package/hound-tauri-build)
-[![license](https://img.shields.io/npm/l/hound-tauri-build)](https://github.com/Frank-Steven/hound-tauri-build/blob/main/LICENSE)
+[![license](https://img.shields.io/npm/l/hound-tauri-build)](https://github.com/HoundTek/hound-tauri-build/blob/main/LICENSE)
 [![node](https://img.shields.io/node/v/hound-tauri-build)](https://nodejs.org/)
 
 ---
